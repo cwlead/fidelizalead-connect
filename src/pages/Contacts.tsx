@@ -33,6 +33,61 @@ export default function Contacts() {
 
   const loadContacts = async () => {
     try {
+      // Modo demo: dados mock
+      const token = localStorage.getItem('auth_token');
+      if (token === 'mock_token_123') {
+        const mockContacts = [
+          {
+            id: '1',
+            name: 'João Silva',
+            phone_e164: '+5511999887766',
+            email: 'joao@email.com',
+            tags: 'vip,ativo',
+            consent_at: new Date().toISOString(),
+            optout_at: null,
+          },
+          {
+            id: '2',
+            name: 'Maria Santos',
+            phone_e164: '+5521988776655',
+            email: 'maria@email.com',
+            tags: 'novo',
+            consent_at: new Date().toISOString(),
+            optout_at: null,
+          },
+          {
+            id: '3',
+            name: 'Pedro Oliveira',
+            phone_e164: '+5531977665544',
+            email: null,
+            tags: 'inativo',
+            consent_at: null,
+            optout_at: null,
+          },
+          {
+            id: '4',
+            name: 'Ana Costa',
+            phone_e164: '+5541966554433',
+            email: 'ana@email.com',
+            tags: 'vip,premium',
+            consent_at: new Date().toISOString(),
+            optout_at: null,
+          },
+          {
+            id: '5',
+            name: 'Carlos Souza',
+            phone_e164: '+5551955443322',
+            email: 'carlos@email.com',
+            tags: null,
+            consent_at: new Date().toISOString(),
+            optout_at: '2024-01-15T10:00:00Z',
+          },
+        ];
+        setContacts(mockContacts);
+        setLoading(false);
+        return;
+      }
+
       const data = await contactsApi.list();
       setContacts(data);
     } catch (error) {

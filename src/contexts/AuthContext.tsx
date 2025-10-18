@@ -21,6 +21,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (token) {
+      // Modo demo com usuario mock
+      if (token === 'mock_token_123') {
+        const mockUser: User = {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          org_id: '223e4567-e89b-12d3-a456-426614174000',
+          email: 'teste@fidelizalead.com',
+          name: 'Usuário Teste',
+          role: 'admin',
+          created_at: new Date().toISOString(),
+        };
+        const mockOrg: Organization = {
+          id: '223e4567-e89b-12d3-a456-426614174000',
+          name: 'Loja Demo',
+          segmento: 'Varejo',
+          features: {},
+          created_at: new Date().toISOString(),
+        };
+        setUser(mockUser);
+        setOrganization(mockOrg);
+        setLoading(false);
+        return;
+      }
+
       authApi
         .me()
         .then(({ user, organization }) => {
@@ -39,6 +62,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    // Usuario de teste
+    if (email === 'teste@fidelizalead.com' && password === 'teste123') {
+      const mockUser: User = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        org_id: '223e4567-e89b-12d3-a456-426614174000',
+        email: 'teste@fidelizalead.com',
+        name: 'Usuário Teste',
+        role: 'admin',
+        created_at: new Date().toISOString(),
+      };
+      const mockOrg: Organization = {
+        id: '223e4567-e89b-12d3-a456-426614174000',
+        name: 'Loja Demo',
+        segmento: 'Varejo',
+        features: {},
+        created_at: new Date().toISOString(),
+      };
+      localStorage.setItem('auth_token', 'mock_token_123');
+      setUser(mockUser);
+      setOrganization(mockOrg);
+      toast.success('Login realizado com sucesso! (Modo Demo)');
+      return;
+    }
+
     try {
       const response = await authApi.login(email, password);
       localStorage.setItem('auth_token', response.token);

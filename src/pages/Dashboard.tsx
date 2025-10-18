@@ -12,7 +12,20 @@ export default function Dashboard() {
     reportsApi
       .dashboard()
       .then((data) => setStats(data))
-      .catch(console.error)
+      .catch((error) => {
+        // Modo demo: dados mock
+        const token = localStorage.getItem('auth_token');
+        if (token === 'mock_token_123') {
+          setStats({
+            active_contacts: 1247,
+            messages_24h: 423,
+            vouchers_redeemed: 89,
+            attributed_revenue: 12450.50,
+            active_campaigns: 5,
+            reactivated_30d: 156,
+          });
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 

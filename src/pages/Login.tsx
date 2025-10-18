@@ -76,6 +76,14 @@ export default function Login() {
               )}
             </Button>
           </form>
+
+          <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
+            <p className="text-sm font-medium text-foreground mb-2">👤 Credenciais de Teste:</p>
+            <div className="text-xs space-y-1 text-muted-foreground">
+              <p><strong>Email:</strong> teste@fidelizalead.com</p>
+              <p><strong>Senha:</strong> teste123</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
