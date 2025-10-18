@@ -10,6 +10,7 @@ import {
   Award,
   MessageCircle,
   UsersRound,
+  Plug2,
   BarChart3,
   Settings,
   LogOut,
@@ -36,8 +37,9 @@ const navigation = [
   { name: 'Campanhas', href: '/campanhas', icon: Megaphone },
   { name: 'Sequências', href: '/sequencias', icon: GitBranch },
   { name: 'Fidelidade', href: '/fidelidade', icon: Award },
-  { name: 'WhatsApp', href: '/whatsapp', icon: MessageCircle },
+  { name: 'WhatsApp', href: '/whatsapp', icon: MessageCircle, highlight: true },
   { name: 'Grupos', href: '/grupos', icon: UsersRound },
+  { name: 'Integrações', href: '/integracoes', icon: Plug2, highlight: true },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
@@ -86,10 +88,12 @@ export function AppLayout({ children }: AppLayoutProps) {
                   'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                   isActive
                     ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                    : (item as any).highlight
+                    ? 'text-primary hover:bg-primary/10 font-semibold'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <item.icon className="w-5 h-5" />
+                <item.icon className={cn('w-5 h-5', (item as any).highlight && 'text-primary')} />
                 {item.name}
               </Link>
             );

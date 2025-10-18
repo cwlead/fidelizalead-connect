@@ -214,6 +214,34 @@ export const integrationsApi = {
     const { data } = await api.post(`/integrations/${id}/sync`);
     return data;
   },
+  shopify: {
+    oauthStart: async (params: { shop_domain: string; requested_scopes: string }) => {
+      const { data } = await api.post('/integrations/shopify/oauth/start', params);
+      return data;
+    },
+    test: async (integrationId: string) => {
+      const { data } = await api.post('/integrations/shopify/test', { integration_id: integrationId });
+      return data;
+    },
+    sync: async (integrationId: string) => {
+      const { data } = await api.post('/integrations/shopify/sync', { integration_id: integrationId });
+      return data;
+    },
+  },
+  bling: {
+    oauthStart: async (params: { requested_scopes: string }) => {
+      const { data } = await api.post('/integrations/bling/oauth/start', params);
+      return data;
+    },
+    test: async (integrationId: string) => {
+      const { data } = await api.post('/integrations/bling/test', { integration_id: integrationId });
+      return data;
+    },
+    sync: async (integrationId: string) => {
+      const { data } = await api.post('/integrations/bling/sync', { integration_id: integrationId });
+      return data;
+    },
+  },
 };
 
 // WhatsApp Groups

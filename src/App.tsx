@@ -13,6 +13,7 @@ import Sequences from "./pages/Sequences";
 import Loyalty from "./pages/Loyalty";
 import WhatsApp from "./pages/WhatsApp";
 import Groups from "./pages/Groups";
+import Integrations from "./pages/Integrations";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -82,6 +83,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Groups />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integracoes"
+              element={
+                <ProtectedRoute>
+                  <Integrations />
                 </ProtectedRoute>
               }
             />
