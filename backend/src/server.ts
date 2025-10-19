@@ -7,6 +7,7 @@ import { tenants } from './routes/tenants';
 import { botconversa } from './routes/botconversa';
 import { errorHandler } from './middlewares/error-handler';
 import { auth } from './routes/auth';
+import { onboarding } from './routes/onboarding';
 import pinoHttp from 'pino-http';
 import { logger } from './logger';
 import { evolution } from './routes/evolution';
@@ -45,8 +46,9 @@ export function buildServer() {
     app.use(base, health);                 // GET /health
     app.use(base + '/tenants', tenants);   // /tenants/*
     app.use(base + '/botconversa', botconversa);
-    app.use(evolution);
+    app.use(base + '/evolution', evolution);
     app.use(base, auth);                   // /auth/*
+    app.use(base, onboarding);             // /onboarding
   };
 
   // expõe sem prefixo e com /api

@@ -14,9 +14,8 @@ export const evolution = Router();
 const ConnectBody = z.object({
   seed: z.string().min(1).optional(),
   webhookUrl: z.string().url().optional(),
-  // número opcional (E.164 sem "+", ex.: 5527999999999)
   number: z.string().regex(/^\d{10,15}$/).optional(),
-});
+}).optional();
 
 /**
  * Conecta/garante a instância na Evolution e retorna state + QR (se disponível)
@@ -24,7 +23,8 @@ const ConnectBody = z.object({
  */
 evolution.post('/evolution/connect', authRequired, async (req, res, next) => {
   try {
-    const { seed, webhookUrl, number } = ConnectBody.parse(req.body ?? {});
+    const parsed = ConnectBody.parse(req.body ?? {}) || {};
+    const { seed, webhookUrl, number } = parsed;
     const user = (req as any).user as JwtPayload | undefined;
 
     const baseSeed = seed ?? user?.org_id ?? user?.sub;

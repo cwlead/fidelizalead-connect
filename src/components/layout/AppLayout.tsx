@@ -32,6 +32,7 @@ interface AppLayoutProps {
 }
 
 const navigation = [
+  { name: 'Configuração inicial', href: '/onboarding', icon: Zap, highlight: true },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Contatos', href: '/contatos', icon: Users },
   { name: 'Campanhas', href: '/campanhas', icon: Megaphone },

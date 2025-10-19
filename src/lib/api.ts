@@ -181,6 +181,26 @@ export const loyaltyApi = {
   },
 };
 
+// Onboarding
+export const onboardingApi = {
+  save: async (data: any) => {
+    const { data: result } = await api.post('/onboarding', data);
+    return result;
+  },
+  get: async () => {
+    const { data } = await api.get('/onboarding');
+    return data;
+  },
+};
+
+// Evolution
+export const evolutionApi = {
+  connect: async (data?: any) => {
+    const { data: result } = await api.post('/evolution/connect', data || {});
+    return result;
+  },
+};
+
 // Integrations
 export const integrationsApi = {
   list: async () => {

@@ -14,6 +14,7 @@ import Loyalty from "./pages/Loyalty";
 import WhatsApp from "./pages/WhatsApp";
 import Groups from "./pages/Groups";
 import Integrations from "./pages/Integrations";
+import Onboarding from "./pages/Onboarding";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard"
               element={
