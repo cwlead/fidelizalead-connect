@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       console.error('Login error:', error);
     } finally {
