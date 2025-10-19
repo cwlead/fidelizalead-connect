@@ -1,0 +1,843 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model audit_events {
+  id           String        @id @db.Uuid
+  org_id       String        @db.Uuid
+  contact_id   String?       @db.Uuid
+  kind         String
+  ext_id       String
+  payload      Json?         @db.Json
+  ts           DateTime      @db.Timestamp(6)
+  crm_contacts crm_contacts? @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs    core_orgs     @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, kind, ext_id])
+}
+
+model catalog_product_identities {
+  id                       String                    @id @db.Uuid
+  org_id                   String                    @db.Uuid
+  system                   String
+  external_product_id      String?
+  external_variant_id      String?
+  external_sku             String?
+  product_id               String?                   @db.Uuid
+  variant_id               String?                   @db.Uuid
+  raw                      Json?                     @db.Json
+  created_at               DateTime                  @db.Timestamp(6)
+  core_orgs                core_orgs                 @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_products         catalog_products?         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_product_variants catalog_product_variants? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model catalog_product_variants {
+  id                         String                       @id @db.Uuid
+  org_id                     String                       @db.Uuid
+  product_id                 String                       @db.Uuid
+  sku                        String?
+  name                       String?
+  attributes                 Json?                        @db.Json
+  is_active                  Boolean
+  created_at                 DateTime                     @db.Timestamp(6)
+  catalog_product_identities catalog_product_identities[]
+  core_orgs                  core_orgs                    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_products           catalog_products             @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_order_items_unified  sales_order_items_unified[]
+
+  @@unique([org_id, sku])
+}
+
+model catalog_products {
+  id                         String                       @id @db.Uuid
+  org_id                     String                       @db.Uuid
+  sku                        String?
+  name                       String
+  category                   String?
+  is_active                  Boolean
+  created_at                 DateTime                     @db.Timestamp(6)
+  catalog_product_identities catalog_product_identities[]
+  catalog_product_variants   catalog_product_variants[]
+  core_orgs                  core_orgs                    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_order_items_unified  sales_order_items_unified[]
+
+  @@unique([org_id, sku])
+}
+
+model comms_campaigns {
+  id               String             @id @db.Uuid
+  org_id           String             @db.Uuid
+  name             String
+  segment          Json?              @db.Json
+  status           String
+  channel          String?
+  created_by       String?            @db.Uuid
+  created_at       DateTime           @db.Timestamp(6)
+  core_users       core_users?        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs        core_orgs          @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  comms_messages   comms_messages[]
+  loyalty_vouchers loyalty_vouchers[]
+}
+
+model comms_messages {
+  id              String           @id @db.Uuid
+  org_id          String           @db.Uuid
+  contact_id      String?          @db.Uuid
+  campaign_id     String?          @db.Uuid
+  sequence_id     String?          @db.Uuid
+  template        String?
+  direction       String
+  status          String
+  provider_msg_id String?
+  payload         Json?            @db.Json
+  ts              DateTime         @db.Timestamp(6)
+  comms_campaigns comms_campaigns? @relation(fields: [campaign_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  crm_contacts    crm_contacts?    @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs       core_orgs        @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  comms_sequences comms_sequences? @relation(fields: [sequence_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model comms_sequences {
+  id             String           @id @db.Uuid
+  org_id         String           @db.Uuid
+  name           String
+  schedule       Json?            @db.Json
+  active         Boolean
+  created_at     DateTime         @db.Timestamp(6)
+  comms_messages comms_messages[]
+  core_orgs      core_orgs        @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model core_orgs {
+  id                                String                              @id @db.Uuid
+  name                              String
+  segmento                          String?
+  features                          Json?                               @db.Json
+  created_at                        DateTime                            @db.Timestamp(6)
+  audit_events                      audit_events[]
+  catalog_product_identities        catalog_product_identities[]
+  catalog_product_variants          catalog_product_variants[]
+  catalog_products                  catalog_products[]
+  comms_campaigns                   comms_campaigns[]
+  comms_messages                    comms_messages[]
+  comms_sequences                   comms_sequences[]
+  core_users                        core_users[]
+  crm_contact_identities            crm_contact_identities[]
+  crm_contact_keys                  crm_contact_keys[]
+  crm_contact_match_policy          crm_contact_match_policy?
+  crm_contacts                      crm_contacts[]
+  crm_order_contacts                crm_order_contacts[]
+  engagement_contact_rank           engagement_contact_rank[]
+  engagement_rank_events            engagement_rank_events[]
+  engagement_rank_tiers             engagement_rank_tiers[]
+  integrations_integration_logs     integrations_integration_logs[]
+  integrations_integrations         integrations_integrations[]
+  integrations_links                integrations_links[]
+  loyalty_point_ledger              loyalty_point_ledger[]
+  loyalty_points                    loyalty_points[]
+  loyalty_vouchers                  loyalty_vouchers[]
+  sales_order_aliases               sales_order_aliases[]
+  sales_order_items_unified         sales_order_items_unified[]
+  sales_orders_unified              sales_orders_unified[]
+  sales_source_dedupe_policy        sales_source_dedupe_policy[]
+  sched_appointments                sched_appointments[]
+  sched_resources                   sched_resources[]
+  sched_slots                       sched_slots[]
+  src_bling_contacts                src_bling_contacts[]
+  src_bling_order_items             src_bling_order_items[]
+  src_bling_order_parcels           src_bling_order_parcels[]
+  src_bling_order_transport         src_bling_order_transport[]
+  src_bling_order_transport_volumes src_bling_order_transport_volumes[]
+  src_bling_orders                  src_bling_orders[]
+  src_shopify_order_items           src_shopify_order_items[]
+  src_shopify_orders                src_shopify_orders[]
+  wpp_group_members                 wpp_group_members[]
+  wpp_groups                        wpp_groups[]
+  wpp_member_events                 wpp_member_events[]
+}
+
+model core_users {
+  id              String            @id @db.Uuid
+  org_id          String            @db.Uuid
+  email           String
+  name            String?
+  role            String
+  password_hash   String
+  created_at      DateTime          @db.Timestamp(6)
+  comms_campaigns comms_campaigns[]
+  core_orgs       core_orgs         @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, email])
+}
+
+model crm_contact_identities {
+  id           String       @id @db.Uuid
+  org_id       String       @db.Uuid
+  contact_id   String       @db.Uuid
+  system       String
+  external_id  String
+  phone_raw    String?
+  email_raw    String?
+  raw          Json?        @db.Json
+  created_at   DateTime     @db.Timestamp(6)
+  crm_contacts crm_contacts @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs    core_orgs    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, system, external_id])
+}
+
+model crm_contact_keys {
+  id           String       @id @db.Uuid
+  org_id       String       @db.Uuid
+  contact_id   String       @db.Uuid
+  kind         String
+  value        String
+  created_at   DateTime     @db.Timestamp(6)
+  crm_contacts crm_contacts @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs    core_orgs    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, contact_id, kind])
+  @@unique([org_id, kind, value])
+}
+
+model crm_contact_match_policy {
+  org_id         String    @id @db.Uuid
+  primary_kind   String
+  priority       Json      @db.Json
+  enforce_unique Boolean
+  created_at     DateTime  @db.Timestamp(6)
+  core_orgs      core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model crm_contacts {
+  id                      String                    @id @db.Uuid
+  org_id                  String                    @db.Uuid
+  phone_e164              String?
+  email                   String?
+  name                    String?
+  tags                    String?
+  consent_at              DateTime?                 @db.Timestamp(6)
+  optout_at               DateTime?                 @db.Timestamp(6)
+  origin                  String?
+  created_at              DateTime                  @db.Timestamp(6)
+  updated_at              DateTime                  @db.Timestamp(6)
+  audit_events            audit_events[]
+  comms_messages          comms_messages[]
+  crm_contact_identities  crm_contact_identities[]
+  crm_contact_keys        crm_contact_keys[]
+  core_orgs               core_orgs                 @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  crm_order_contacts      crm_order_contacts[]
+  engagement_contact_rank engagement_contact_rank[]
+  engagement_rank_events  engagement_rank_events[]
+  loyalty_point_ledger    loyalty_point_ledger[]
+  loyalty_points          loyalty_points[]
+  loyalty_vouchers        loyalty_vouchers[]
+  sales_orders_unified    sales_orders_unified[]
+  sched_appointments      sched_appointments[]
+  wpp_group_members       wpp_group_members[]
+  wpp_member_events       wpp_member_events[]
+
+  @@unique([org_id, email])
+  @@unique([org_id, phone_e164])
+}
+
+model crm_order_contacts {
+  org_id          String       @db.Uuid
+  source_system   String
+  source_order_pk String
+  contact_id      String       @db.Uuid
+  created_at      DateTime     @db.Timestamp(6)
+  crm_contacts    crm_contacts @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs       core_orgs    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, source_system, source_order_pk])
+  @@index([org_id, contact_id], map: "crm_order_contacts_contact_idx")
+}
+
+model engagement_contact_rank {
+  org_id                String                 @db.Uuid
+  contact_id            String                 @db.Uuid
+  purchases_count       Int
+  rank_code             String?
+  computed_at           DateTime               @db.Timestamp(6)
+  crm_contacts          crm_contacts           @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs             core_orgs              @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  engagement_rank_tiers engagement_rank_tiers? @relation(fields: [org_id, rank_code], references: [org_id, code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, contact_id])
+  @@index([org_id, rank_code], map: "engagement_contact_rank_idx")
+}
+
+model engagement_rank_events {
+  id                   String                @id @db.Uuid
+  org_id               String                @db.Uuid
+  contact_id           String                @db.Uuid
+  kind                 String
+  order_unified_id     String?               @db.Uuid
+  delta_purchases      Int
+  occurred_at          DateTime              @db.Timestamp(6)
+  created_at           DateTime              @db.Timestamp(6)
+  crm_contacts         crm_contacts          @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_orders_unified sales_orders_unified? @relation(fields: [order_unified_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs            core_orgs             @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([org_id, contact_id, occurred_at], map: "engagement_rank_events_idx")
+}
+
+model engagement_rank_tiers {
+  org_id                  String                    @db.Uuid
+  code                    String
+  min_purchases           Int
+  max_purchases           Int?
+  engagement_contact_rank engagement_contact_rank[]
+  core_orgs               core_orgs                 @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, code])
+}
+
+model integrations_integration_logs {
+  id                        BigInt                     @id
+  org_id                    String                     @db.Uuid
+  integration_id            String?                    @db.Uuid
+  direction                 String
+  resource                  String
+  status                    Int
+  detail                    Json?                      @db.Json
+  ts                        DateTime                   @db.Timestamp(6)
+  integrations_integrations integrations_integrations? @relation(fields: [integration_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs                 core_orgs                  @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model integrations_integrations {
+  id                                                                                         String                          @id @db.Uuid
+  org_id                                                                                     String                          @db.Uuid
+  kind                                                                                       String
+  config                                                                                     Json?                           @db.Json
+  active                                                                                     Boolean
+  created_at                                                                                 DateTime                        @db.Timestamp(6)
+  integrations_integration_logs                                                              integrations_integration_logs[]
+  core_orgs                                                                                  core_orgs                       @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  integrations_links_integrations_links_downstream_integration_idTointegrations_integrations integrations_links[]            @relation("integrations_links_downstream_integration_idTointegrations_integrations")
+  integrations_links_integrations_links_upstream_integration_idTointegrations_integrations   integrations_links[]            @relation("integrations_links_upstream_integration_idTointegrations_integrations")
+  wpp_groups                                                                                 wpp_groups[]
+}
+
+model integrations_links {
+  org_id                                                                                            String                    @db.Uuid
+  upstream_integration_id                                                                           String                    @db.Uuid
+  downstream_integration_id                                                                         String                    @db.Uuid
+  relation                                                                                          String
+  created_at                                                                                        DateTime                  @db.Timestamp(6)
+  integrations_integrations_integrations_links_downstream_integration_idTointegrations_integrations integrations_integrations @relation("integrations_links_downstream_integration_idTointegrations_integrations", fields: [downstream_integration_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs                                                                                         core_orgs                 @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  integrations_integrations_integrations_links_upstream_integration_idTointegrations_integrations   integrations_integrations @relation("integrations_links_upstream_integration_idTointegrations_integrations", fields: [upstream_integration_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, upstream_integration_id, downstream_integration_id])
+}
+
+model loyalty_point_ledger {
+  id                   String                @id @db.Uuid
+  org_id               String                @db.Uuid
+  contact_id           String                @db.Uuid
+  source               String
+  order_unified_id     String?               @db.Uuid
+  amount               Int
+  note                 String?
+  occurred_at          DateTime              @db.Timestamp(6)
+  created_at           DateTime              @db.Timestamp(6)
+  crm_contacts         crm_contacts          @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales_orders_unified sales_orders_unified? @relation(fields: [order_unified_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs            core_orgs             @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([org_id, contact_id, occurred_at], map: "loyalty_point_ledger_idx")
+}
+
+model loyalty_points {
+  org_id       String       @db.Uuid
+  contact_id   String       @db.Uuid
+  balance      Int
+  tier         String
+  updated_at   DateTime     @db.Timestamp(6)
+  crm_contacts crm_contacts @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs    core_orgs    @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, contact_id])
+  @@index([org_id, updated_at], map: "loyalty_points_idx")
+}
+
+model loyalty_vouchers {
+  id               String           @id @db.Uuid
+  org_id           String           @db.Uuid
+  contact_id       String?          @db.Uuid
+  campaign_id      String?          @db.Uuid
+  code             String
+  kind             String
+  value            Decimal          @db.Decimal(12, 2)
+  currency_code    String           @db.VarChar(3)
+  expires_at       DateTime?        @db.Timestamp(6)
+  redeemed_at      DateTime?        @db.Timestamp(6)
+  redeemed_channel String?
+  metadata         Json?            @db.Json
+  created_at       DateTime         @db.Timestamp(6)
+  comms_campaigns  comms_campaigns? @relation(fields: [campaign_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  crm_contacts     crm_contacts?    @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs        core_orgs        @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, code])
+}
+
+model sales_order_aliases {
+  id                   String               @id @db.Uuid
+  org_id               String               @db.Uuid
+  order_unified_id     String               @db.Uuid
+  source_system        String
+  source_order_pk      String
+  created_at           DateTime             @db.Timestamp(6)
+  sales_orders_unified sales_orders_unified @relation(fields: [order_unified_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs            core_orgs            @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, source_system, source_order_pk])
+  @@index([org_id, order_unified_id], map: "sales_order_aliases_unified_idx")
+}
+
+model sales_order_items_unified {
+  id                       String                    @id @db.Uuid
+  org_id                   String                    @db.Uuid
+  order_unified_id         String                    @db.Uuid
+  product_id               String?                   @db.Uuid
+  variant_id               String?                   @db.Uuid
+  sku                      String?
+  name                     String?
+  quantity                 Decimal                   @db.Decimal(12, 3)
+  unit_price               Decimal?                  @db.Decimal(12, 2)
+  discount                 Decimal?                  @db.Decimal(12, 2)
+  total                    Decimal?                  @db.Decimal(12, 2)
+  source_system            String
+  source_item_pk           String?
+  created_at               DateTime                  @db.Timestamp(6)
+  sales_orders_unified     sales_orders_unified      @relation(fields: [order_unified_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs                core_orgs                 @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_products         catalog_products?         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalog_product_variants catalog_product_variants? @relation(fields: [variant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sales_order_status_map {
+  source_system String
+  source_value  String
+  status_canon  String
+
+  @@id([source_system, source_value])
+}
+
+model sales_orders_unified {
+  id                        String                      @id @db.Uuid
+  org_id                    String                      @db.Uuid
+  contact_id                String?                     @db.Uuid
+  source_system             String
+  source_order_pk           String
+  status                    String
+  total_amount              Decimal                     @db.Decimal(12, 2)
+  currency_code             String                      @db.VarChar(3)
+  coupon                    String?
+  notes                     String?
+  occurred_at               DateTime                    @db.Timestamp(6)
+  created_at                DateTime                    @db.Timestamp(6)
+  engagement_rank_events    engagement_rank_events[]
+  loyalty_point_ledger      loyalty_point_ledger[]
+  sales_order_aliases       sales_order_aliases[]
+  sales_order_items_unified sales_order_items_unified[]
+  crm_contacts              crm_contacts?               @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs                 core_orgs                   @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, source_system, source_order_pk])
+}
+
+model sales_source_dedupe_policy {
+  org_id          String    @db.Uuid
+  master_system   String
+  mirrored_system String
+  enabled         Boolean
+  created_at      DateTime  @db.Timestamp(6)
+  core_orgs       core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([org_id, master_system, mirrored_system])
+}
+
+model sched_appointments {
+  id              String          @id @db.Uuid
+  org_id          String          @db.Uuid
+  contact_id      String?         @db.Uuid
+  resource_id     String          @db.Uuid
+  service         String?
+  starts_at       DateTime        @db.Timestamp(6)
+  ends_at         DateTime        @db.Timestamp(6)
+  status          String
+  origin          String?
+  notes           String?
+  created_at      DateTime        @db.Timestamp(6)
+  crm_contacts    crm_contacts?   @relation(fields: [contact_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs       core_orgs       @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sched_resources sched_resources @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model sched_resources {
+  id                 String               @id @db.Uuid
+  org_id             String               @db.Uuid
+  name               String
+  meta               Json?                @db.Json
+  sched_appointments sched_appointments[]
+  core_orgs          core_orgs            @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sched_slots        sched_slots[]
+}
+
+model sched_slots {
+  id              String          @id @db.Uuid
+  org_id          String          @db.Uuid
+  resource_id     String          @db.Uuid
+  starts_at       DateTime        @db.Timestamp(6)
+  ends_at         DateTime        @db.Timestamp(6)
+  status          String
+  core_orgs       core_orgs       @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sched_resources sched_resources @relation(fields: [resource_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([resource_id, starts_at, ends_at])
+}
+
+model shopifypedidos {
+  id                     String   @id @db.Uuid
+  order_number           String
+  created_at             DateTime @db.Timestamp(6)
+  updated_at             DateTime @db.Timestamp(6)
+  total_price            Decimal  @db.Decimal(12, 2)
+  currency               String   @db.VarChar(3)
+  customer_email         String?
+  customer_name          String?
+  customer_phone         String?
+  financial_status       String?
+  fulfillment_status     String?
+  payment_method         String?
+  payment_gateway_names  Json?    @db.Json
+  order_status_url       String?
+  tags                   String?
+  total_weight           Int?
+  total_tax              Decimal? @db.Decimal(12, 2)
+  total_discounts        Decimal? @db.Decimal(12, 2)
+  total_line_items_price Decimal? @db.Decimal(12, 2)
+  billing_address        Json?    @db.Json
+  shipping_address       Json?    @db.Json
+  line_items             Json?    @db.Json
+  note_attributes        Json?    @db.Json
+  dados_adicionais       Json?    @db.Json
+  shipping_city          String?
+  shipping_zip           String?
+  billing_city           String?
+  billing_zip            String?
+}
+
+model src_bling_contacts {
+  id                    String    @id @db.Uuid
+  org_id                String    @db.Uuid
+  bling_contact_id      String?
+  codigo                String?
+  situacao              String?
+  numerodocumento       String?
+  telefone              String?
+  celular               String?
+  nome                  String?
+  fantasia              String?
+  tipo                  String?
+  indicadorie           String?
+  ie                    String?
+  rg                    String?
+  inscricaomunicipal    String?
+  orgaoemissor          String?
+  email                 String?
+  endereco              String?
+  cep                   String?
+  bairro                String?
+  municipio             String?
+  uf                    String?
+  numero                String?
+  complemento           String?
+  cobranca_endereco     String?
+  cobranca_cep          String?
+  cobranca_bairro       String?
+  cobranca_municipio    String?
+  cobranca_uf           String?
+  cobranca_numero       String?
+  cobranca_complemento  String?
+  vendedor_id           String?
+  datanascimento        DateTime? @db.Date
+  sexo                  String?
+  naturalidade          String?
+  limitecredito         Decimal?  @db.Decimal(12, 2)
+  condicaopagamento     String?
+  categoria_id          String?
+  pais_nome             String?
+  n_compras             Int?
+  clientepontos         Int?
+  n_cancelamentos       Int?
+  n_trocas              Int?
+  cliente_rank          String?
+  rank_cliente          String?
+  btc                   Boolean?
+  relacionamentoplus    Boolean?
+  googlecontacts        Boolean?
+  btc_duvidas           Int?
+  pontos_cliente        Int?
+  data_atualizacao_rank DateTime? @db.Timestamp(6)
+  att_rank_transmissao  DateTime? @db.Timestamp(6)
+  att_rank_duvidas      DateTime? @db.Timestamp(6)
+  att_rank_wpp          DateTime? @db.Timestamp(6)
+  created_at_bling      DateTime? @db.Timestamp(6)
+  n_atende_motoboy      Int?
+  raw                   Json?     @db.Json
+  created_at            DateTime  @db.Timestamp(6)
+  core_orgs             core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, bling_contact_id])
+  @@unique([org_id, codigo])
+}
+
+model src_bling_order_items {
+  id                      String    @id @db.Uuid
+  org_id                  String    @db.Uuid
+  bling_order_id          String
+  item_id                 String?
+  item_codigo             String?
+  item_unidade            String?
+  item_quantidade         Decimal   @db.Decimal(12, 3)
+  item_desconto           Decimal?  @db.Decimal(12, 2)
+  item_valor              Decimal?  @db.Decimal(12, 2)
+  item_aliquotaipi        Decimal?  @db.Decimal(12, 2)
+  item_descricao          String?
+  item_descricaodetalhada String?
+  item_produto_id         String?
+  item_comissao_base      Decimal?  @db.Decimal(12, 2)
+  item_comissao_aliquota  Decimal?  @db.Decimal(12, 2)
+  item_comissao_valor     Decimal?  @db.Decimal(12, 2)
+  sku                     String?
+  name                    String?
+  payload                 Json?     @db.Json
+  created_at              DateTime  @db.Timestamp(6)
+  core_orgs               core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model src_bling_order_parcels {
+  id                        String    @id @db.Uuid
+  org_id                    String    @db.Uuid
+  bling_order_id            String
+  parcela_id                String?
+  parcela_datavencimento    DateTime? @db.Date
+  parcela_valor             Decimal?  @db.Decimal(12, 2)
+  parcela_observacoes       String?
+  parcela_formapagamento_id String?
+  created_at                DateTime  @db.Timestamp(6)
+  core_orgs                 core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model src_bling_order_transport {
+  id                   String    @id @db.Uuid
+  org_id               String    @db.Uuid
+  bling_order_id       String
+  freteporconta        String?
+  frete                Decimal?  @db.Decimal(12, 2)
+  quantidadevolumes    Int?
+  pesobruto            Decimal?  @db.Decimal(12, 3)
+  prazoentrega         String?
+  contato_id           String?
+  contato_nome         String?
+  etiqueta_nome        String?
+  etiqueta_endereco    String?
+  etiqueta_numero      String?
+  etiqueta_complemento String?
+  etiqueta_municipio   String?
+  etiqueta_uf          String?
+  etiqueta_cep         String?
+  etiqueta_bairro      String?
+  etiqueta_nomepais    String?
+  created_at           DateTime  @db.Timestamp(6)
+  core_orgs            core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model src_bling_order_transport_volumes {
+  id                         String    @id @db.Uuid
+  org_id                     String    @db.Uuid
+  bling_order_id             String
+  volumes_id                 String?
+  volumes_servico            String?
+  volumes_codigorastreamento String?
+  created_at                 DateTime  @db.Timestamp(6)
+  core_orgs                  core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model src_bling_orders {
+  id                                    String    @id @db.Uuid
+  org_id                                String    @db.Uuid
+  bling_order_id                        String?
+  numero                                String?
+  numeroloja                            String?
+  numeropedidocompra                    String?
+  numeropedidocompratexto               String?
+  data                                  DateTime? @db.Date
+  datasaida                             DateTime? @db.Date
+  dataprevista                          DateTime? @db.Date
+  occurred_at                           DateTime? @db.Timestamp(6)
+  totalprodutos                         Decimal?  @db.Decimal(12, 2)
+  total                                 Decimal?  @db.Decimal(12, 2)
+  outrasdespesas                        Decimal?  @db.Decimal(12, 2)
+  desconto_valor                        Decimal?  @db.Decimal(12, 2)
+  desconto_unidade                      String?
+  tributacao_totalicms                  Decimal?  @db.Decimal(12, 2)
+  tributacao_totalipi                   Decimal?  @db.Decimal(12, 2)
+  contato_id                            String?
+  contato_nome                          String?
+  contato_tipopessoa                    String?
+  contato_numerodocumento               String?
+  situacao_id                           String?
+  situacao_valor                        String?
+  categoria_id                          String?
+  notafiscal_id                         String?
+  transporte_freteporconta              String?
+  transporte_frete                      Decimal?  @db.Decimal(12, 2)
+  transporte_quantidadevolumes          Int?
+  transporte_pesobruto                  Decimal?  @db.Decimal(12, 3)
+  transporte_prazoentrega               String?
+  transporte_contato_id                 String?
+  transporte_contato_nome               String?
+  transporte_etiqueta_nome              String?
+  transporte_etiqueta_endereco          String?
+  transporte_etiqueta_numero            String?
+  transporte_etiqueta_complemento       String?
+  transporte_etiqueta_municipio         String?
+  transporte_etiqueta_uf                String?
+  transporte_etiqueta_cep               String?
+  transporte_etiqueta_bairro            String?
+  transporte_etiqueta_nomepais          String?
+  transporte_volumes_id                 String?
+  transporte_volumes_servico            String?
+  transporte_volumes_codigorastreamento String?
+  vendedor_id                           String?
+  intermediador_cnpj                    String?
+  intermediador_nomeusuario             String?
+  taxas_taxacomissao                    Decimal?  @db.Decimal(12, 2)
+  taxas_custofrete                      Decimal?  @db.Decimal(12, 2)
+  taxas_valorbase                       Decimal?  @db.Decimal(12, 2)
+  nomeloja                              String?
+  nomevendedor                          String?
+  situacaopedido                        String?
+  vendor_id                             String?
+  n_compras                             Int?
+  celular                               String?
+  observacoes                           String?
+  observacoesinternas                   String?
+  payload                               Json?     @db.Json
+  created_at                            DateTime  @db.Timestamp(6)
+  core_orgs                             core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, bling_order_id])
+  @@unique([org_id, numero])
+}
+
+model src_shopify_order_items {
+  id                  String    @id @db.Uuid
+  org_id              String    @db.Uuid
+  shopify_order_id    String
+  external_product_id String?
+  external_variant_id String?
+  sku                 String?
+  title               String?
+  quantity            Decimal   @db.Decimal(12, 3)
+  price               Decimal?  @db.Decimal(12, 2)
+  discount_allocated  Decimal?  @db.Decimal(12, 2)
+  total               Decimal?  @db.Decimal(12, 2)
+  payload             Json?     @db.Json
+  created_at          DateTime  @db.Timestamp(6)
+  core_orgs           core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model src_shopify_orders {
+  id                 String    @id @db.Uuid
+  org_id             String    @db.Uuid
+  shopify_order_id   String
+  customer_id        String?
+  financial_status   String?
+  fulfillment_status String?
+  total_price        Decimal?  @db.Decimal(12, 2)
+  discount_code      String?
+  note               String?
+  payload            Json?     @db.Json
+  occurred_at        DateTime? @db.Timestamp(6)
+  created_at         DateTime  @db.Timestamp(6)
+  core_orgs          core_orgs @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, shopify_order_id])
+}
+
+model wpp_group_members {
+  id            String        @id @db.Uuid
+  org_id        String        @db.Uuid
+  group_id      String        @db.Uuid
+  contact_id    String?       @db.Uuid
+  wa_user_id    String?
+  role          String?
+  is_member     Boolean
+  first_join_at DateTime?     @db.Timestamp(6)
+  last_join_at  DateTime?     @db.Timestamp(6)
+  left_at       DateTime?     @db.Timestamp(6)
+  last_seen_at  DateTime?     @db.Timestamp(6)
+  source        String?
+  created_at    DateTime      @db.Timestamp(6)
+  crm_contacts  crm_contacts? @relation(fields: [contact_id], references: [id], onUpdate: NoAction)
+  wpp_groups    wpp_groups    @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  core_orgs     core_orgs     @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, group_id, contact_id, wa_user_id])
+  @@index([org_id, group_id, is_member], map: "wpp_group_members_group_member_idx")
+  @@index([org_id, is_member, left_at(sort: Desc)], map: "wpp_group_members_left_idx")
+}
+
+model wpp_groups {
+  id                        String                     @id @db.Uuid
+  org_id                    String                     @db.Uuid
+  integration_id            String?                    @db.Uuid
+  wa_group_id               String
+  name                      String?
+  subject                   String?
+  invite_link               String?
+  is_active                 Boolean
+  last_sync_at              DateTime?                  @db.Timestamp(6)
+  created_at                DateTime                   @db.Timestamp(6)
+  wpp_group_members         wpp_group_members[]
+  integrations_integrations integrations_integrations? @relation(fields: [integration_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  core_orgs                 core_orgs                  @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  wpp_member_events         wpp_member_events[]
+
+  @@unique([org_id, wa_group_id])
+  @@index([org_id, is_active], map: "wpp_groups_org_active_idx")
+}
+
+model wpp_member_events {
+  id           String        @id @db.Uuid
+  org_id       String        @db.Uuid
+  group_id     String        @db.Uuid
+  contact_id   String?       @db.Uuid
+  wa_user_id   String?
+  kind         String
+  occurred_at  DateTime      @db.Timestamp(6)
+  ext_event_id String?
+  raw          Json?         @db.Json
+  created_at   DateTime      @db.Timestamp(6)
+  crm_contacts crm_contacts? @relation(fields: [contact_id], references: [id], onUpdate: NoAction)
+  wpp_groups   wpp_groups    @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  core_orgs    core_orgs     @relation(fields: [org_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([org_id, ext_event_id])
+  @@index([org_id, group_id, kind, occurred_at(sort: Desc)], map: "wpp_member_events_kind_time_idx")
+}
