@@ -5,11 +5,11 @@ import { env } from './env';
 import { health } from './routes/health';
 import { tenants } from './routes/tenants';
 import { botconversa } from './routes/botconversa';
-import { evolution } from './routes/evolution';
 import { errorHandler } from './middlewares/error-handler';
 import { auth } from './routes/auth';
 import pinoHttp from 'pino-http';
 import { logger } from './logger';
+import { evolution } from './routes/evolution';
 
 export function buildServer() {
   const app = express();
@@ -45,7 +45,7 @@ export function buildServer() {
     app.use(base, health);                 // GET /health
     app.use(base + '/tenants', tenants);   // /tenants/*
     app.use(base + '/botconversa', botconversa);
-    app.use(base + '/evolution', evolution);
+    app.use(evolution);
     app.use(base, auth);                   // /auth/*
   };
 
