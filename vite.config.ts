@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
-    port: 8081,
+    port: 8080,
     proxy: {
       "/api": {
         target: "http://127.0.0.1:4000",
@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  preview: { host: "0.0.0.0", port: 8081 },
+  preview: { host: "0.0.0.0", port: 8080 },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
 }));
