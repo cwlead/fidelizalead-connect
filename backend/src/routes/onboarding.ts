@@ -28,55 +28,60 @@ onboarding.post('/onboarding', authRequired, async (req, res, next) => {
     const data = OnboardingSchema.parse(req.body);
 
     // monta SET dinâmico apenas com campos enviados
-    const fields: string[] = [];
+    const setParts: string[] = [];
     const values: any[] = [];
     let idx = 1;
 
     if (data.primary_identifier !== undefined) {
-      fields.push(`primary_identifier = $${idx++}`);
+      setParts.push(`primary_identifier = $${idx++}`);
       values.push(data.primary_identifier);
     }
     if (data.erp_slug !== undefined) {
-      fields.push(`erp_slug = $${idx++}`);
+      setParts.push(`erp_slug = $${idx++}`);
       values.push(data.erp_slug);
     }
     if (data.erp_base_url !== undefined) {
-      fields.push(`erp_base_url = $${idx++}`);
+      setParts.push(`erp_base_url = $${idx++}`);
       values.push(data.erp_base_url);
     }
     if (data.botconversa_api_key !== undefined) {
-      fields.push(`botconversa_api_key = $${idx++}`);
+      setParts.push(`botconversa_api_key = $${idx++}`);
       values.push(data.botconversa_api_key);
     }
     if (data.evolution_instance_name !== undefined) {
-      fields.push(`evolution_instance_name = $${idx++}`);
+      setParts.push(`evolution_instance_name = $${idx++}`);
       values.push(data.evolution_instance_name);
     }
     if (data.evolution_webhook_url !== undefined) {
-      fields.push(`evolution_webhook_url = $${idx++}`);
+      setParts.push(`evolution_webhook_url = $${idx++}`);
       values.push(data.evolution_webhook_url);
     }
     if (data.evolution_connected !== undefined) {
-      fields.push(`evolution_connected = $${idx++}`);
+      setParts.push(`evolution_connected = $${idx++}`);
       values.push(data.evolution_connected);
     }
 
-    if (fields.length === 0) {
+    if (setParts.length === 0) {
       return res.json({ ok: true });
     }
 
-    fields.push(`updated_at = now()`);
-    
-    // Coleta nomes de colunas para INSERT
-    const colNames = fields.map(f => f.split(' = ')[0]);
+    // nomes de coluna para INSERT (sem incluir updated_at aqui!)
+    const colNames = setParts.map((p) => p.split(' = ')[0]);
+
+    // placeholders para os valores do INSERT (na mesma ordem de colNames)
+    const valuePlaceholders = values.map((_, i) => `$${i + 1}`).join(', ');
+
+    // org_id como último parâmetro (para usar $idx)
     values.push(user.org_id);
 
-    // UPSERT
+    // SET do UPSERT com updated_at no UPDATE
+    const updateSet = [...setParts, 'updated_at = now()'].join(', ');
+
     const sql = `
-      INSERT INTO org_settings (org_id, ${colNames.join(', ')}, created_at)
-      VALUES ($${idx}, ${values.slice(0, -1).map((_, i) => `$${i + 1}`).join(', ')}, now())
-      ON CONFLICT (org_id) 
-      DO UPDATE SET ${fields.join(', ')}
+      INSERT INTO org_settings (org_id, ${colNames.join(', ')}, created_at, updated_at)
+      VALUES ($${idx}, ${valuePlaceholders}, now(), now())
+      ON CONFLICT (org_id)
+      DO UPDATE SET ${updateSet}
     `;
 
     await pool.query(sql, values);

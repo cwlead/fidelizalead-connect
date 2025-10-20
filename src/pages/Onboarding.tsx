@@ -26,6 +26,16 @@ type OnboardingData = {
   evolution_connected: boolean;
 };
 
+const okCls = (ok: boolean) =>
+  ok ? 'text-emerald-600' : 'text-muted-foreground';
+
+const masked = (s?: string | null) =>
+  s ? s : 'Não configurado';
+
+
+const idLabel = (v: 'email' | 'phone' | 'cpf' | null) =>
+  v ? ({ email: 'Email', phone: 'Telefone', cpf: 'CPF' } as const)[v] : 'Não configurado';
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -47,33 +57,84 @@ export default function Onboarding() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [evolutionInstance, setEvolutionInstance] = useState<string | null>(null);
 
+  // State timing
+  const QR_TTL = 60; // segundos
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [autoRefreshing, setAutoRefreshing] = useState(false);
+
   // Form states
   const [identifier, setIdentifier] = useState<'email' | 'phone' | 'cpf'>('email');
   const [erpSlug, setErpSlug] = useState('custom');
   const [erpUrl, setErpUrl] = useState('');
   const [botconversaKey, setBotconversaKey] = useState('');
 
+  // Func state timing
+  function fmtTimer(s: number) {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${m}:${ss}`;
+  }
+
+  const [finished, setFinished] = useState(false);
+
+
   useEffect(() => {
     loadOnboarding();
   }, []);
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      if (!data.evolution_connected && !evolutionLoading && !autoRefreshing) {
+        setAutoRefreshing(true);
+        generateQR().finally(() => setAutoRefreshing(false));
+      }
+      return;
+    }
+    const id = setInterval(() => {
+      setCountdown((s) => (typeof s === 'number' ? s - 1 : s));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [countdown, data.evolution_connected, evolutionLoading, autoRefreshing]);
+
+  useEffect(() => {
+    setFinished(localStorage.getItem('onboardingDone') === '1');
+  }, []);
+
+
+  const finishOnboarding = () => {
+    try {
+      localStorage.setItem('onboardingDone', '1');
+    } catch {}
+    setFinished(true);
+    navigate('/dashboard');
+  };
 
   const loadOnboarding = async () => {
     try {
       const result = await onboardingApi.get();
       setData(result);
-      
+
       if (result.primary_identifier) setIdentifier(result.primary_identifier);
       if (result.erp_slug) setErpSlug(result.erp_slug);
       if (result.erp_base_url) setErpUrl(result.erp_base_url);
-      if (result.botconversa_api_key) setBotconversaKey(result.botconversa_api_key);
       if (result.evolution_instance_name) setEvolutionInstance(result.evolution_instance_name);
 
-      // Abre primeira seção incompleta
-      if (!result.primary_identifier) setActiveSection('identifier');
-      else if (!result.erp_base_url) setActiveSection('erp');
-      else if (!result.evolution_connected) setActiveSection('evolution');
-      else if (!result.botconversa_api_key || result.botconversa_api_key.includes('••••')) setActiveSection('botconversa');
-      else setActiveSection('summary');
+      // se já existe key (mascarada), deixamos o input vazio
+      if (result.botconversa_api_key) setBotconversaKey('');
+
+      // abre a primeira seção incompleta (sem checar máscara de key)
+      if (!result.primary_identifier) {
+        setActiveSection('identifier');
+      } else if (!result.erp_base_url) {
+        setActiveSection('erp');
+      } else if (!result.evolution_connected) {
+        setActiveSection('evolution');
+      } else if (!result.botconversa_api_key) {
+        setActiveSection('botconversa');
+      } else {
+        setActiveSection('summary');
+      }
     } catch (error) {
       toast({ title: 'Erro ao carregar dados', variant: 'destructive' });
     } finally {
@@ -115,28 +176,32 @@ export default function Onboarding() {
   };
 
   const generateQR = async () => {
+    if (evolutionLoading) return; // evita chamadas duplas
     setEvolutionLoading(true);
     try {
       const result = await evolutionApi.connect();
-      
-      if (!result.ok) {
-        const errorMsg = result.error?.response?.message || result.error?.message || 'Erro ao gerar QR';
+
+      if (!result?.ok) {
+        const errorMsg = result?.error?.message || 'Erro ao conectar Evolution';
         toast({ title: errorMsg, variant: 'destructive' });
-        setEvolutionLoading(false);
         return;
       }
 
-      setEvolutionInstance(result.instance);
-      
-      if (result.qrBase64) {
-        const qr = result.qrBase64.startsWith('data:') 
-          ? result.qrBase64 
-          : `data:image/png;base64,${result.qrBase64}`;
-        setQrCode(qr);
-      } else {
-        toast({ title: 'QR não disponível ainda', description: 'Tente novamente em alguns segundos' });
-        setTimeout(generateQR, 3000);
+      setEvolutionInstance(result.instance || null);
+
+      if (result.qrDataUrl) {
+        setQrCode(result.qrDataUrl);
+        setCountdown(QR_TTL); // inicia/reinicia o timer
+        return;
       }
+
+      if (result.connect?.code) {
+        toast({ title: 'Gerando QR...', description: 'Aguarde um instante.' });
+        setTimeout(generateQR, 2500);
+        return;
+      }
+
+      toast({ title: 'QR não disponível ainda', description: 'Tente novamente em alguns segundos' });
     } catch (error: any) {
       const errorMsg = error?.response?.data?.error?.message || error?.message || 'Erro ao conectar Evolution';
       toast({ title: errorMsg, variant: 'destructive' });
@@ -167,33 +232,40 @@ export default function Onboarding() {
     }
   };
 
-  const saveBotconversa = async () => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(botconversaKey)) {
-      toast({ title: 'API-KEY deve ser um UUID v4 válido', variant: 'destructive' });
-      return;
-    }
+    const saveBotconversa = async () => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(botconversaKey)) {
+        toast({ title: 'API-KEY deve ser um UUID v4 válido', variant: 'destructive' });
+        return;
+      }
 
-    setSaving('botconversa');
-    try {
-      await onboardingApi.save({ botconversa_api_key: botconversaKey });
-      toast({ title: 'BotConversa configurado' });
-      setActiveSection('summary');
-      loadOnboarding(); // reload para pegar key mascarada
-    } catch (error) {
-      toast({ title: 'Erro ao salvar BotConversa', variant: 'destructive' });
-    } finally {
-      setSaving(null);
-    }
-  };
+      setSaving('botconversa');
+      try {
+        await onboardingApi.save({ botconversa_api_key: botconversaKey });
+
+        // Marca etapa como concluída e evita repor máscara no input
+        setData((d) => ({ ...d, botconversa_api_key: 'saved' }));
+        setBotconversaKey('');
+
+        toast({ title: 'BotConversa configurado' });
+        setActiveSection('summary');
+
+        // ❌ não chamar loadOnboarding() aqui
+      } catch (error) {
+        toast({ title: 'Erro ao salvar BotConversa', variant: 'destructive' });
+      } finally {
+        setSaving(null);
+      }
+    };
+
 
   const isCompleted = (section: string) => {
     switch (section) {
       case 'identifier': return !!data.primary_identifier;
       case 'erp': return !!data.erp_base_url;
       case 'evolution': return data.evolution_connected;
-      case 'botconversa': return !!data.botconversa_api_key && !data.botconversa_api_key.includes('••••');
-      default: return false;
+      case 'botconversa':return !!data.botconversa_api_key;
+      default:           return false;
     }
   };
 
@@ -317,11 +389,30 @@ export default function Onboarding() {
 
                 {qrCode && (
                   <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        {countdown !== null
+                          ? <>QR expira em <span className="font-medium">{fmtTimer(countdown)}</span></>
+                          : 'QR gerado'}
+                      </div>
+                      {autoRefreshing && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Atualizando…
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex justify-center p-4 bg-white rounded-lg">
                       <img src={qrCode} alt="QR Code" className="w-64 h-64" />
                     </div>
+
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={generateQR}>
+                      <Button
+                        variant="outline"
+                        onClick={() => { setCountdown(null); generateQR(); }}
+                        disabled={evolutionLoading}
+                      >
                         Recarregar QR
                       </Button>
                       <Button onClick={markEvolutionConnected} disabled={saving === 'evolution'}>
@@ -383,34 +474,52 @@ export default function Onboarding() {
             <AccordionContent>
               <div className="space-y-4 pt-4">
                 <div className="space-y-3 p-4 bg-muted rounded-lg">
+                  {/* Identificador principal */}
                   <div>
                     <div className="text-sm font-medium">Identificador principal</div>
-                    <div className="text-sm text-muted-foreground">
-                      {data.primary_identifier || 'Não configurado'}
+                    <div className={`text-sm ${okCls(!!data.primary_identifier)}`}>
+                      {idLabel(data.primary_identifier)}
                     </div>
                   </div>
+                  {/* ERP Base URL */}
                   <div>
                     <div className="text-sm font-medium">ERP Base URL</div>
-                    <div className="text-sm text-muted-foreground">
-                      {data.erp_base_url || 'Não configurado'}
+                    <div className={`text-sm ${okCls(!!data.erp_base_url)}`}>
+                      {masked(data.erp_base_url)}
                     </div>
                   </div>
+                  {/* Evolution (WhatsApp) */}
                   <div>
                     <div className="text-sm font-medium">Evolution (WhatsApp)</div>
-                    <div className="text-sm text-muted-foreground">
-                      {data.evolution_connected ? `✓ Conectado (${data.evolution_instance_name})` : 'Não conectado'}
+                    <div className={`text-sm ${okCls(!!data.evolution_connected)}`}>
+                      {data.evolution_connected
+                        ? `✓ Conectado (${data.evolution_instance_name})`
+                        : 'Não conectado'}
                     </div>
                   </div>
+                  {/* BotConversa API-KEY */}
                   <div>
                     <div className="text-sm font-medium">BotConversa API-KEY</div>
-                    <div className="text-sm text-muted-foreground">
-                      {data.botconversa_api_key || 'Não configurado'}
+                    <div className={`text-sm ${okCls(!!data.botconversa_api_key)}`}>
+                      {masked(data.botconversa_api_key)}
                     </div>
                   </div>
                 </div>
-                <Button onClick={() => navigate('/dashboard')}>
-                  Concluir e ir para Dashboard
-                </Button>
+                  <Button onClick={finishOnboarding} variant={finished ? 'secondary' : 'default'}>
+                    {finished ? (
+                        <Button
+                          type="button"
+                          disabled
+                          className="bg-green-600 text-white hover:bg-green-600 opacity-100 cursor-default"
+                        >
+                          Concluído
+                        </Button>
+                      ) : (
+                        <Button onClick={finishOnboarding}>
+                          Concluir e ir para Dashboard
+                        </Button>
+                      )}
+                  </Button>
               </div>
             </AccordionContent>
           </AccordionItem>

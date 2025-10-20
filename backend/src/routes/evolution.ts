@@ -1,70 +1,85 @@
+// src/routes/evolution.ts
 import { Router } from 'express';
-import { z } from 'zod';
+import crypto from 'crypto';
+import QRCode from 'qrcode'; // opcional (npm i qrcode)
+import { authRequired, type JwtPayload } from '../middlewares/auth';
+import { pool } from '../db';
 import { env } from '../env';
 import {
-  buildInstanceName,
-  evoEnsureInstance,
-  evoGetQrBase64,
-  evoConnectionState,
+  evoCreateInstanceBasic,
+  evoConnectInstance,
 } from '../services/evolution.service';
-import { authRequired, type JwtPayload } from '../middlewares/auth';
 
 export const evolution = Router();
 
-const ConnectBody = z.object({
-  seed: z.string().min(1).optional(),
-  webhookUrl: z.string().url().optional(),
-  number: z.string().regex(/^\d{10,15}$/).optional(),
-}).optional();
-
-/**
- * Conecta/garante a instância na Evolution e retorna state + QR (se disponível)
+/** 
  * POST /evolution/connect
+ * - Gera/garante instanceName UUID por org
+ * - Cria a instância na Evolution se necessário
+ * - Conecta a instância e retorna { pairingCode, code, count } e, se possível, qrDataUrl (PNG base64)
  */
-evolution.post('/evolution/connect', authRequired, async (req, res, next) => {
+evolution.post('/connect', authRequired, async (req, res) => {
   try {
-    const parsed = ConnectBody.parse(req.body ?? {}) || {};
-    const { seed, webhookUrl, number } = parsed;
     const user = (req as any).user as JwtPayload | undefined;
+    if (!user?.org_id) return res.status(400).json({ ok: false, error: 'missing_org_id' });
 
-    const baseSeed = seed ?? user?.org_id ?? user?.sub;
-    if (!baseSeed) {
-      return res.status(400).json({ error: 'Seed ausente (org_id/sub/seed)' });
+    // 1) Carrega nome salvo ou cria um novo com UUID
+    const row = await pool.query(
+      `select evolution_instance_name
+         from org_settings
+        where org_id = $1`,
+      [user.org_id]
+    );
+
+    let instanceName: string | null = row.rows[0]?.evolution_instance_name ?? null;
+    if (!instanceName) {
+      // prefixo + UUID evita colisão na Evolution (que não aceita nomes repetidos)
+      const uuid = crypto.randomUUID();
+      instanceName = `${env.EVOLUTION_INSTANCE_PREFIX || 'inst'}-${uuid}`;
+      await pool.query(
+        `insert into org_settings (org_id, evolution_instance_name, created_at, updated_at)
+         values ($1, $2, now(), now())
+         on conflict (org_id) do update
+           set evolution_instance_name = excluded.evolution_instance_name,
+               updated_at = now()`,
+        [user.org_id, instanceName]
+      );
     }
 
-    const instance = buildInstanceName(String(baseSeed));
-    const url = webhookUrl || env.EVOLUTION_DEFAULT_WEBHOOK_URL || '';
-
-    // 1) criar/garantir instância (com number opcional)
-    let ensure: any = null;
+    // 2) Tenta criar instância (se já existir, a Evolution pode responder 4xx/409; tratamos no catch)
     try {
-      ensure = await evoEnsureInstance(instance, url, number);
-    } catch (err: any) {
-      return res
-        .status(502)
-        .json({ ok: false, step: 'ensure', instance, error: err?.detail ?? String(err) });
+      await evoCreateInstanceBasic(instanceName);
+    } catch (e: any) {
+      // se for "already exists" segue o jogo; senão repassa o erro
+      const msg = JSON.stringify(e?.detail || {});
+      if (!/exist|already/i.test(msg)) throw e;
     }
 
-    // 2) checar estado
-    let state: any = null;
-    try {
-      state = await evoConnectionState(instance);
-    } catch (err: any) {
-      return res
-        .status(502)
-        .json({ ok: false, step: 'state', instance, error: err?.detail ?? String(err) });
+    // 3) Conecta e obtém code/pairingCode
+    const connect = await evoConnectInstance(instanceName);
+    const { pairingCode, code, count } = connect ?? {};
+
+    // 4) (opcional) Gera QR PNG base64 no backend — facilita o front
+    let qrDataUrl: string | null = null;
+    if (typeof code === 'string' && code.length) {
+      try {
+        qrDataUrl = await QRCode.toDataURL(code); // data:image/png;base64,....
+      } catch {
+        qrDataUrl = null;
+      }
     }
 
-    // 3) tentar QR (pode não existir ainda)
-    let qrBase64: string | null = null;
-    try {
-      qrBase64 = await evoGetQrBase64(instance);
-    } catch {
-      qrBase64 = null;
-    }
-
-    return res.json({ ok: true, instance, ensure, state, qrBase64 });
-  } catch (e) {
-    next(e);
+    return res.json({
+      ok: true,
+      instance: instanceName,
+      connect: { pairingCode, code, count },
+      qrDataUrl, // se null, o front pode gerar sozinho a partir de `code`
+    });
+  } catch (e: any) {
+    return res.status(502).json({
+      ok: false,
+      step: 'evolution_connect',
+      error: e?.detail || { message: String(e?.message || e) },
+    });
   }
 });
