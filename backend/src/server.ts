@@ -11,6 +11,8 @@ import { onboarding } from './routes/onboarding';
 import pinoHttp from 'pino-http';
 import { logger } from './logger';
 import { evolution } from './routes/evolution';
+import { evolutionWebhook } from './routes/evolution.webhook';
+import { evolutionWebhookSet } from './routes/evolution.webhook.set';
 
 export function buildServer() {
   const app = express();
@@ -31,6 +33,10 @@ export function buildServer() {
     );
   }
 
+app.use('/evolution', evolutionWebhook);
+app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
+
+
   app.use(helmet());
   app.use(express.json());
 
@@ -40,6 +46,9 @@ export function buildServer() {
       credentials: true,
     })
   );
+
+app.use('/evolution', evolutionWebhookSet);      // ✅ router de SET correto
+app.use('/api/evolution', evolutionWebhookSet);  // idem com prefixo /api
 
   // monta rotas em um "base path" ('' e '/api')
   const mount = (base = '') => {

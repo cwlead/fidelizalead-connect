@@ -235,7 +235,7 @@ export default function Onboarding() {
     const saveBotconversa = async () => {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(botconversaKey)) {
-        toast({ title: 'API-KEY deve ser um UUID v4 válido', variant: 'destructive' });
+        toast({ title: 'API-KEY invalida deve ser um UUID v4 válido', variant: 'destructive' });
         return;
       }
 

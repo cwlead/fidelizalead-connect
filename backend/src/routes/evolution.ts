@@ -12,7 +12,7 @@ import {
 
 export const evolution = Router();
 
-/** 
+/**
  * POST /evolution/connect
  * - Gera/garante instanceName UUID por org
  * - Cria a instância na Evolution se necessário
