@@ -31,6 +31,7 @@ export const env = {
 
   BOTCONVERSA_BASE_URL: req('BOTCONVERSA_BASE_URL'),
   APP_PUBLIC_BASE_URL: process.env.APP_PUBLIC_BASE_URL ?? '',
+  N8N_CONTACT_SYNC_WEBHOOK_URL: process.env.N8N_CONTACT_SYNC_WEBHOOK_URL ?? '',
 
   // Recebe requisicao da evo
   EVOLUTION_WEBHOOK_TOKEN: req('EVOLUTION_WEBHOOK_TOKEN'),           
