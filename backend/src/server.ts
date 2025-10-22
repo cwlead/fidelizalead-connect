@@ -13,6 +13,8 @@ import { logger } from './logger';
 import { evolution } from './routes/evolution';
 import { evolutionWebhook } from './routes/evolution.webhook';
 import { evolutionWebhookSet } from './routes/evolution.webhook.set';
+import { processDueConnectionChecks } from './services/connection.await.service';
+import { adminJobs } from './routes/admin.jobs';
 
 export function buildServer() {
   const app = express();
@@ -33,6 +35,11 @@ export function buildServer() {
     );
   }
 
+setInterval(() => {
+  processDueConnectionChecks(10).catch(() => {});
+}, 10_000);
+
+app.use('/api/admin', adminJobs);
 app.use('/evolution', evolutionWebhook);
 app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
 

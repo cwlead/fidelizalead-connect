@@ -3,15 +3,13 @@ import { raw as bodyRaw } from 'express';
 import crypto from 'crypto';
 import { pool } from '../db';
 import { env } from '../env';
+import { n8nContactSyncStart } from '../services/n8n.service';
+import { evoGetConnectionState } from '../services/evolution.connection.service'; // ⬅️ NOVO
 
 /**
  * Segurança do webhook:
  * - Preferencial: query ?token=... OU header x-webhook-token
  * - Opcional: HMAC em x-evolution-signature (sha256 do corpo bruto) com segredo EVOLUTION_WEBHOOK_SECRET
- *
- * Env esperados:
- * - EVOLUTION_WEBHOOK_TOKEN   -> token simples para validar origem
- * - EVOLUTION_WEBHOOK_SECRET  -> (opcional) segredo HMAC para validar assinatura
  */
 const WEBHOOK_TOKEN  = env.EVOLUTION_WEBHOOK_TOKEN;
 const WEBHOOK_SECRET = env.EVOLUTION_WEBHOOK_SECRET; // opcional
@@ -34,9 +32,12 @@ evolutionWebhook.post(
   bodyRaw({ type: 'application/json' }),
   async (req, res) => {
     try {
-      // 1) Autorização via token simples
-      const token = (req.query.token as string) || (req.headers['x-webhook-token'] as string);
-      if (!WEBHOOK_TOKEN || token !== WEBHOOK_TOKEN) {
+      // 1) Autorização via token simples (query ou header) — robusto p/ array/duplicado
+      const rawQueryToken = req.query.token as any;
+      const headerToken   = req.headers['x-webhook-token'] as string | string[] | undefined;
+      const pick = (v: any) => Array.isArray(v) ? (v[0] ?? '') : (v ?? '');
+      const givenToken = String(pick(rawQueryToken) || pick(headerToken) || '');
+      if (!WEBHOOK_TOKEN || givenToken !== WEBHOOK_TOKEN) {
         return res.status(401).json({ ok: false, error: 'unauthorized_webhook' });
       }
 
@@ -117,7 +118,117 @@ evolutionWebhook.post(
         [orgId, instanceName, eventType, eventId, payloadHash, rawText]
       );
 
-      // 8) Retorno rápido (não enviar ao n8n ainda — próxima etapa)
+      // 7.1) Marca conectado e dispara N8N (apenas quando virar FALSE→TRUE), confirmando via connectionState
+      try {
+        if (orgId && instanceName) {
+          const et = (eventType || '').toUpperCase();
+          const data = payload?.data || payload;
+
+          // Heurística local: evento de conexão OU state/status = 'open'
+          const state = String(payload?.state || data?.state || data?.status || '').toLowerCase();
+          const looksConnectionEvent =
+            et === 'CONNECTION_UPDATE' || et === 'CONNECTION_STATE' || et === 'APPLICATION_STARTUP';
+
+          // Só tentamos confirmar com provider se ainda não está conectado
+          let shouldCheck = false;
+          try {
+            const r = await pool.query(
+              `SELECT evolution_connected FROM org_settings WHERE org_id = $1 LIMIT 1`,
+              [orgId]
+            );
+            shouldCheck = !r.rows[0]?.evolution_connected && (looksConnectionEvent || state === 'open');
+          } catch {
+            // se falhar o select, não bloqueia
+            shouldCheck = looksConnectionEvent || state === 'open';
+          }
+
+          if (shouldCheck) {
+            // Checagem única no provider
+            let finalOpen = false;
+            try {
+              const providerState = await evoGetConnectionState(String(instanceName));
+              finalOpen = providerState === 'open';
+            } catch (e) {
+              console.warn('[evo.webhook] connectionState check failed:', (e as any)?.message ?? e);
+              // fallback: se payload indicou "open", aceitamos
+              finalOpen = state === 'open';
+            }
+
+            if (finalOpen) {
+              // vira true só se estava false (detecta 1ª conexão real)
+              const upd = await pool.query(
+                `UPDATE org_settings
+                    SET evolution_connected = TRUE,
+                        updated_at = NOW()
+                  WHERE org_id = $1
+                    AND evolution_connected = FALSE
+                  RETURNING org_id`,
+                [orgId]
+              );
+
+              const justTurnedTrue = upd.rowCount > 0;
+
+              if (justTurnedTrue) {
+                // idempotência extra se a coluna existir
+                let already = false;
+                try {
+                  const r = await pool.query(
+                    `SELECT evolution_sync_triggered_at
+                       FROM org_settings
+                      WHERE org_id = $1
+                      LIMIT 1`,
+                    [orgId]
+                  );
+                  already = !!r.rows[0]?.evolution_sync_triggered_at;
+                } catch { /* coluna pode não existir */ }
+
+                if (!already) {
+                  try {
+                    const r = await n8nContactSyncStart({
+                      kind: 'CONTACT_SYNC_START',
+                      org_id: orgId,
+                      instance_name: String(instanceName),
+                      evolution: { base_url: env.EVOLUTION_BASE_URL },
+                      triggered_at: new Date().toISOString(),
+                    });
+                    // marca que já disparamos, se a coluna existir
+                    try {
+                      await pool.query(
+                        `UPDATE org_settings
+                            SET evolution_sync_triggered_at = NOW(),
+                                updated_at = NOW()
+                          WHERE org_id = $1`,
+                        [orgId]
+                      );
+                    } catch {/* coluna pode não existir */}
+                    console.log('[n8n.sync] triggered', { orgId, instanceName, status: r?.status });
+                  } catch (e: any) {
+                    console.error('[n8n.sync] failed', e?.response?.data ?? e?.message ?? e);
+                  }
+                }
+              }
+            }
+          }
+
+          // (opcional) marcar desconectado quando o provider avisar
+          const looksClosed =
+            state === 'close' || state === 'closed' || et === 'DISCONNECTED' || et === 'LOGOUT';
+          if (looksClosed) {
+            await pool.query(
+              `UPDATE org_settings
+                  SET evolution_connected = FALSE,
+                      updated_at = NOW()
+                WHERE org_id = $1`,
+              [orgId]
+            );
+            // não resetamos evolution_sync_triggered_at: dispara apenas na 1ª conexão da vida
+          }
+        }
+      } catch (e) {
+        console.error('[webhook->n8n]', e);
+      }
+
+      // 8) Retorno rápido
       return res.status(200).json({ ok: true });
     } catch (e: any) {
       console.error('[evolution_webhook]', e?.response?.data ?? e?.message ?? e);
