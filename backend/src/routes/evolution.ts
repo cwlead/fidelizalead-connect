@@ -51,8 +51,7 @@ evolution.post('/connect', authRequired, async (req, res) => {
     // 3) Garante instância na Evolution
     try {
       await evoCreateInstanceBasic(instanceName);
-    } catch (e: any) {
-      const msg = JSON.stringify(e?.detail || e?.message || '');
+    } catch (e: any) {ngify(e?.detail || e?.message || '');
       if (!/exist|already/i.test(msg)) throw e;
     }
 
@@ -156,3 +155,4 @@ evolution.post('/connect', authRequired, async (req, res) => {
     });
   }
 });
+      
