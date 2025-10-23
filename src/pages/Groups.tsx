@@ -230,7 +230,7 @@ export default function Groups() {
                               Cadastrando...
                             </>
                           ) : (
-                            'Cadastrar contatos'
+                            'Importar contatos'
                           )}
                         </Button>
                       </CardContent>

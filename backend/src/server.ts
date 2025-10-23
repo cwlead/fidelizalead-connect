@@ -16,6 +16,10 @@ import { evolutionWebhookSet } from './routes/evolution.webhook.set';
 import { processDueConnectionChecks } from './services/connection.await.service';
 import { adminJobs } from './routes/admin.jobs';
 
+import { orgConnectionRouter } from './routes/org.connection';
+import { wppGroupsRouter } from './routes/wpp.groups';
+
+
 export function buildServer() {
   const app = express();
 
@@ -42,7 +46,8 @@ setInterval(() => {
 app.use('/api/admin', adminJobs);
 app.use('/evolution', evolutionWebhook);
 app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
-
+app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
+app.use('/api/wpp', wppGroupsRouter);
 
   app.use(helmet());
   app.use(express.json());
