@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Users, Loader2 } from 'lucide-react';
+import { AlertCircle, Users, Loader2, ArrowLeft, Send, UserX, MessageSquare } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { orgConnectionApi, whatsappGroupsApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,15 +30,34 @@ interface WhatsAppGroup {
 
 export default function Groups() {
   const { organization } = useAuth();
+  const navigate = useNavigate();
   const [connectionSummary, setConnectionSummary] = useState<ConnectionSummary | null>(null);
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [registeringGroups, setRegisteringGroups] = useState<Set<string>>(new Set());
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const selectedCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadData();
   }, [organization?.id]);
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedGroupId) {
+        setSelectedGroupId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (selectedGroupId && selectedCardRef.current) {
+      selectedCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedGroupId]);
 
   const loadData = async () => {
     if (!organization?.id) return;
@@ -114,6 +134,21 @@ export default function Groups() {
       .join('')
       .toUpperCase();
   };
+
+  const handleSelectGroup = (groupId: string) => {
+    setSelectedGroupId(groupId);
+  };
+
+  const handleExitFocus = () => {
+    setSelectedGroupId(null);
+  };
+
+  const handleGoToCampaigns = (group: WhatsAppGroup) => {
+    navigate(`/campanhas?source=groups&groupId=${group.id}&groupName=${encodeURIComponent(group.subject || 'Grupo')}`);
+  };
+
+  const isFocusing = selectedGroupId !== null;
+  const selectedGroup = groups.find(g => g.id === selectedGroupId);
 
   if (loading) {
     return (
@@ -195,14 +230,55 @@ export default function Groups() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {groups.map(group => {
                   const isRegistering = registeringGroups.has(group.id);
+                  const isSelected = group.id === selectedGroupId;
+                  const isFaded = isFocusing && !isSelected;
                   
                   return (
-                    <Card key={group.id} className="hover:shadow-lg transition-shadow">
+                    <Card 
+                      key={group.id} 
+                      ref={isSelected ? selectedCardRef : null}
+                      className={`
+                        transition-all duration-300
+                        ${isSelected 
+                          ? 'md:col-span-2 lg:col-span-3 shadow-2xl scale-100' 
+                          : 'hover:shadow-lg scale-100'
+                        }
+                        ${isFaded 
+                          ? 'opacity-40 scale-95 pointer-events-none' 
+                          : ''
+                        }
+                      `}
+                      aria-expanded={isSelected}
+                    >
                       <CardContent className="p-6">
-                        <div className="flex items-start gap-4 mb-4">
+                        {isSelected && (
+                          <div className="flex items-center justify-between mb-4 pb-4 border-b">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={handleExitFocus}
+                              className="gap-2"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                              Voltar aos grupos
+                            </Button>
+                            {getConnectionBadge()}
+                          </div>
+                        )}
+
+                        <div 
+                          className={`flex items-start gap-4 mb-4 ${!isSelected ? 'cursor-pointer' : ''}`}
+                          onClick={() => !isSelected && handleSelectGroup(group.id)}
+                        >
                           <Avatar className="w-12 h-12">
                             {group.picture_url && (
-                              <AvatarImage src={group.picture_url} alt={group.subject || 'Grupo'} />
+                              <AvatarImage 
+                                src={group.picture_url} 
+                                alt={group.subject || 'Grupo'}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
                             )}
                             <AvatarFallback className="bg-primary/10 text-primary">
                               {getInitials(group.subject)}
@@ -217,22 +293,97 @@ export default function Groups() {
                             </p>
                           </div>
                         </div>
-                        
-                        <Button
-                          onClick={() => handleRegisterMembers(group)}
-                          disabled={isRegistering}
-                          className="w-full"
-                          size="sm"
-                        >
-                          {isRegistering ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Cadastrando...
-                            </>
-                          ) : (
-                            'Importar contatos'
-                          )}
-                        </Button>
+
+                        {isSelected && (
+                          <div className="space-y-6 mt-6 animate-fade-in">
+                            <div>
+                              <h4 className="text-lg font-semibold mb-4">Sugestões para este grupo</h4>
+                              
+                              <div className="space-y-3">
+                                <Card className="bg-secondary/20 border-secondary/40">
+                                  <CardContent className="p-4">
+                                    <div className="flex gap-3">
+                                      <Send className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <h5 className="font-medium mb-1">Enviar mensagem individual para cada membro</h5>
+                                        <p className="text-sm text-muted-foreground">Aumenta a taxa de resposta e cria proximidade.</p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                <Card className="bg-secondary/20 border-secondary/40">
+                                  <CardContent className="p-4">
+                                    <div className="flex gap-3">
+                                      <UserX className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <h5 className="font-medium mb-1">Mensagem automática quando alguém sair do grupo</h5>
+                                        <p className="text-sm text-muted-foreground">Recupera relações e reduz churn silencioso.</p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                <Card className="bg-secondary/20 border-secondary/40">
+                                  <CardContent className="p-4">
+                                    <div className="flex gap-3">
+                                      <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                      <div>
+                                        <h5 className="font-medium mb-1">Mensagens personalizadas por perfil</h5>
+                                        <p className="text-sm text-muted-foreground">Melhora conversão com argumentos que importam para cada pessoa.</p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <Button
+                                onClick={() => handleGoToCampaigns(group)}
+                                className="flex-1"
+                                size="lg"
+                              >
+                                <Send className="w-4 h-4 mr-2" />
+                                Criar campanha para este grupo
+                              </Button>
+                              
+                              <Button
+                                onClick={() => handleRegisterMembers(group)}
+                                disabled={isRegistering}
+                                variant="outline"
+                                size="lg"
+                              >
+                                {isRegistering ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Cadastrando...
+                                  </>
+                                ) : (
+                                  'Importar contatos'
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {!isSelected && (
+                          <Button
+                            onClick={() => handleRegisterMembers(group)}
+                            disabled={isRegistering}
+                            className="w-full"
+                            size="sm"
+                          >
+                            {isRegistering ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Cadastrando...
+                              </>
+                            ) : (
+                              'Importar contatos'
+                            )}
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   );
