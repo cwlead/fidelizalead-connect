@@ -264,42 +264,22 @@ export const integrationsApi = {
   },
 };
 
+// Organization Connection
+export const orgConnectionApi = {
+  getSummary: async () => {
+    const { data } = await api.get('/org/connection/summary');
+    return data;
+  },
+};
+
 // WhatsApp Groups
 export const whatsappGroupsApi = {
-  list: async (params?: any) => {
-    const { data } = await api.get('/whatsapp/groups', { params });
+  list: async (orgId: string) => {
+    const { data } = await api.get('/wpp/groups', { params: { org_id: orgId } });
     return data;
   },
-  get: async (id: string) => {
-    const { data } = await api.get(`/whatsapp/groups/${id}`);
-    return data;
-  },
-  members: async (id: string, params?: any) => {
-    const { data } = await api.get(`/whatsapp/groups/${id}/members`, { params });
-    return data;
-  },
-  broadcast: async (id: string, message: string) => {
-    const { data } = await api.post(`/whatsapp/groups/${id}/broadcast`, { message });
-    return data;
-  },
-  sendDM: async (id: string, contactId: string, message: string) => {
-    const { data } = await api.post(`/whatsapp/groups/${id}/dm`, { contactId, message });
-    return data;
-  },
-  reinvite: async (id: string, contactId: string) => {
-    const { data } = await api.post(`/whatsapp/groups/${id}/reinvite`, { contactId });
-    return data;
-  },
-  updateInviteLink: async (id: string) => {
-    const { data } = await api.post(`/whatsapp/groups/${id}/invite-link`);
-    return data;
-  },
-  exportMembers: async (id: string) => {
-    const { data } = await api.get(`/whatsapp/groups/${id}/export`);
-    return data;
-  },
-  sync: async (id: string) => {
-    const { data } = await api.post(`/whatsapp/groups/${id}/sync`);
+  registerMembers: async (groupId: string, payload: any) => {
+    const { data } = await api.post(`/wpp/groups/${groupId}/register-members`, payload);
     return data;
   },
 };
