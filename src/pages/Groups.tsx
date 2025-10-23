@@ -369,19 +369,11 @@ export default function Groups() {
 
                         {!isSelected && (
                           <Button
-                            onClick={() => handleRegisterMembers(group)}
-                            disabled={isRegistering}
+                            onClick={() => handleSelectGroup(group.id)}
                             className="w-full"
                             size="sm"
                           >
-                            {isRegistering ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Cadastrando...
-                              </>
-                            ) : (
-                              'Importar contatos'
-                            )}
+                            Ver grupo
                           </Button>
                         )}
                       </CardContent>
