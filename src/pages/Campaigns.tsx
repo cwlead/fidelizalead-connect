@@ -1,9 +1,15 @@
+import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { CampaignWizard } from '@/components/campaigns/CampaignWizard';
+import { JobsActivePanel } from '@/components/campaigns/JobsActivePanel';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Campaigns() {
+  const { user, organization } = useAuth();
+  const [showWizard, setShowWizard] = useState(false);
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -14,22 +20,24 @@ export default function Campaigns() {
               Crie e gerencie campanhas de WhatsApp
             </p>
           </div>
-          <Button>
+          <Button onClick={() => setShowWizard(true)}>
             <Plus className="w-4 h-4 mr-2" />
-            Nova Campanha
+            Criar Campanha Plus
           </Button>
         </div>
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>Suas Campanhas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-12 text-muted-foreground">
-              Em breve: listagem e gestão de campanhas
-            </div>
-          </CardContent>
-        </Card>
+        {organization?.id && <JobsActivePanel orgId={organization.id} />}
+
+        {showWizard && organization?.id && (
+          <CampaignWizard
+            orgId={organization.id}
+            onClose={() => setShowWizard(false)}
+            onLaunched={() => {
+              // Refresh jobs panel
+              window.location.reload();
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );

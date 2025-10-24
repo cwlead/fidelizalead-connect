@@ -18,6 +18,7 @@ import { adminJobs } from './routes/admin.jobs';
 
 import { orgConnectionRouter } from './routes/org.connection';
 import { wppGroupsRouter } from './routes/wpp.groups';
+import { campaignsRouter } from './routes/campaigns';
 
 
 export function buildServer() {
@@ -53,6 +54,7 @@ app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
 
 app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
 app.use('/api/wpp', wppGroupsRouter);
+app.use('/api', campaignsRouter);
 
   app.use(
     cors({

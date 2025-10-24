@@ -81,32 +81,38 @@ export const contactsApi = {
 
 // Campaigns
 export const campaignsApi = {
-  list: async (params?: any) => {
-    const { data } = await api.get('/campaigns', { params });
+  presets: async () => {
+    const { data } = await api.get('/campaigns/presets');
     return data;
   },
-  get: async (id: string) => {
-    const { data } = await api.get(`/campaigns/${id}`);
+  templates: async () => {
+    const { data } = await api.get('/campaigns/templates');
     return data;
   },
   create: async (campaign: any) => {
     const { data } = await api.post('/campaigns', campaign);
     return data;
   },
-  update: async (id: string, campaign: any) => {
-    const { data } = await api.put(`/campaigns/${id}`, campaign);
+  estimate: async (id: string, orgId?: string) => {
+    const { data } = await api.post(`/campaigns/${id}/estimate`, { org_id: orgId });
     return data;
   },
-  delete: async (id: string) => {
-    await api.delete(`/campaigns/${id}`);
-  },
-  send: async (id: string) => {
-    const { data } = await api.post(`/campaigns/${id}/send`);
+  schedule: async (id: string, throttle: any, orgId?: string) => {
+    const { data } = await api.post(`/campaigns/${id}/schedule`, { throttle, org_id: orgId });
     return data;
   },
-  results: async (id: string, params?: any) => {
-    const { data } = await api.get(`/campaigns/${id}/results`, { params });
+  run: async (id: string, orgId?: string) => {
+    const { data } = await api.post(`/campaigns/${id}/run`, { org_id: orgId });
     return data;
+  },
+  getActiveRuns: async (orgId?: string) => {
+    const { data } = await api.get('/campaigns/runs/active', { params: { org_id: orgId } });
+    return data;
+  },
+  getRunProgress: (runId: string) => {
+    const token = localStorage.getItem('auth_token');
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+    return new EventSource(`${baseURL}/api/campaigns/runs/${runId}/progress?token=${token}`);
   },
 };
 
