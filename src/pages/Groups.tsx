@@ -26,6 +26,7 @@ interface WhatsAppGroup {
   picture_url: string | null;
   created_at?: string;
   last_sync_at?: string;
+  contatos_sincronizados?: boolean;
 }
 
 export default function Groups() {
@@ -305,7 +306,7 @@ export default function Groups() {
                                     <div className="flex gap-3">
                                       <Send className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                                       <div>
-                                        <h5 className="font-medium mb-1">Enviar mensagem individual para cada membro</h5>
+                                        <h5 className="font-medium mb-1">Que tal enviar mensagem individual para cada membro</h5>
                                         <p className="text-sm text-muted-foreground">Aumenta a taxa de resposta e cria proximidade.</p>
                                       </div>
                                     </div>
@@ -317,8 +318,8 @@ export default function Groups() {
                                     <div className="flex gap-3">
                                       <UserX className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                                       <div>
-                                        <h5 className="font-medium mb-1">Mensagem automática quando alguém sair do grupo</h5>
-                                        <p className="text-sm text-muted-foreground">Recupera relações e reduz churn silencioso.</p>
+                                        <h5 className="font-medium mb-1">Que tal enviar mensagem automática quando alguém sair do grupo</h5>
+                                        <p className="text-sm text-muted-foreground">Melhora a relação e convida para outro grupo</p>
                                       </div>
                                     </div>
                                   </CardContent>
@@ -329,8 +330,8 @@ export default function Groups() {
                                     <div className="flex gap-3">
                                       <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                                       <div>
-                                        <h5 className="font-medium mb-1">Mensagens personalizadas por perfil</h5>
-                                        <p className="text-sm text-muted-foreground">Melhora conversão com argumentos que importam para cada pessoa.</p>
+                                        <h5 className="font-medium mb-1">Os clientes não estão acompanhando o grupo?</h5>
+                                        <p className="text-sm text-muted-foreground">Envie uma mensagem individual perguntando o motivo e se conecte novamente</p>
                                       </div>
                                     </div>
                                   </CardContent>
@@ -350,14 +351,19 @@ export default function Groups() {
                               
                               <Button
                                 onClick={() => handleRegisterMembers(group)}
-                                disabled={isRegistering}
-                                variant="outline"
+                                disabled={isRegistering || group.contatos_sincronizados}
+                                variant={group.contatos_sincronizados ? "secondary" : "outline"}
+                                className={group.contatos_sincronizados ? "bg-green-200 text-green-700 border-green-400 hover:bg-green-300" : ""}
                                 size="lg"
                               >
                                 {isRegistering ? (
                                   <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Cadastrando...
+                                    Sincronizando aguarde...
+                                  </>
+                                ) : group.contatos_sincronizados ? (
+                                  <>
+                                    Contatos sincronizados
                                   </>
                                 ) : (
                                   'Importar contatos'
@@ -369,8 +375,7 @@ export default function Groups() {
 
                         {!isSelected && (
                           <Button
-                            onClick={() => handleRegisterMembers(group)}
-                            disabled={isRegistering}
+                            onClick={() => handleSelectGroup(group.id)}
                             className="w-full"
                             size="sm"
                           >
@@ -380,7 +385,7 @@ export default function Groups() {
                                 Cadastrando...
                               </>
                             ) : (
-                              'Importar contatos'
+                              'Ver grupo'
                             )}
                           </Button>
                         )}
