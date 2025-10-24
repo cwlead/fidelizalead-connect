@@ -28,7 +28,7 @@ export async function enqueueConnectionCheckJob(org_id: string, instance_name: s
   );
 }
 
-// ---------- Worker: processa até N jobs vencidos ----------
+// ---------- Worker: processa até N jobs vencidos ----------/*
 export async function processDueConnectionChecks(limit = 10) {
   // 1) puxa jobs prontos
   const { rows: jobs } = await pool.query(

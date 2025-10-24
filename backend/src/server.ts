@@ -46,11 +46,13 @@ setInterval(() => {
 app.use('/api/admin', adminJobs);
 app.use('/evolution', evolutionWebhook);
 app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
-app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
-app.use('/api/wpp', wppGroupsRouter);
+
 
   app.use(helmet());
   app.use(express.json());
+
+app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
+app.use('/api/wpp', wppGroupsRouter);
 
   app.use(
     cors({
