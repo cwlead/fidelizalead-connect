@@ -79,6 +79,7 @@ export const contactsApi = {
   },
 };
 
+
 // Campaigns
 export const campaignsApi = {
   presets: async () => {
@@ -113,9 +114,22 @@ export const campaignsApi = {
     const token = localStorage.getItem('auth_token');
     const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
     return new EventSource(`${baseURL}/api/campaigns/runs/${runId}/progress?token=${token}`);
+  },  
+  saveMessage: async (id: string, orgId: string | undefined, message: any) => {
+    const { data } = await api.patch(`/campaigns/${id}/message`, { org_id: orgId, message });
+    return data;
   },
 };
 
+export const wppApi = {
+  /** Lista grupos da organização */
+  groups: async (orgId?: string) => {
+    const { data } = await api.get('/wpp/groups', {
+      params: { org_id: orgId }, // backend aceita pelo JWT ou por query
+    });
+    return data; // [{ id, org_id, wa_group_id, subject, picture_url, ... }]
+  },
+};
 // Sequences
 export const sequencesApi = {
   list: async (params?: any) => {
