@@ -50,7 +50,7 @@ export function JobsActivePanel({ orgId }: JobsActivePanelProps) {
         </CardHeader>
         <CardContent>
           <p className="text-center text-muted-foreground py-8">
-            Nenhum job ativo no momento
+            Nenhuma campanha rodando no momento
           </p>
         </CardContent>
       </Card>
@@ -63,7 +63,7 @@ export function JobsActivePanel({ orgId }: JobsActivePanelProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Jobs Ativos
+            Campanhas rodando
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={loadJobs} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />

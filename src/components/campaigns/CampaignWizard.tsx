@@ -123,6 +123,7 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
             <MessageStep
               draft={draft}
               onDraftChange={handleDraftChange}
+              orgId={orgId}  
               onNext={handleNext}
             />
           )}
