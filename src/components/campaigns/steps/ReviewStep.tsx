@@ -26,11 +26,14 @@ export function ReviewStep({ draft, orgId, onLaunch, onClose }: ReviewStepProps)
     if (!draft.id) return;
     setLaunching(true);
     try {
-      const result = await campaignsApi.run(draft.id, orgId);
+      // ✅ agora usa o endpoint que materializa e inicia o run
+      const result = await campaignsApi.materializeAndRun(draft.id, orgId);
+
       toast({
         title: 'Campanha iniciada',
         description: draft.throttle?.dry_run ? 'Rodando em modo dry-run primeiro' : 'Enviando agora'
       });
+
       onLaunch?.(result);
       onClose();
     } catch (error) {

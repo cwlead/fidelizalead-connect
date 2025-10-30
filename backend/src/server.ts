@@ -19,7 +19,7 @@ import { adminJobs } from './routes/admin.jobs';
 import { orgConnectionRouter } from './routes/org.connection';
 import { wppGroupsRouter } from './routes/wpp.groups';
 import { campaignsRouter } from './routes/campaigns';
-
+import { campaignMaterialize } from './routes/campaign.materialize';
 
 export function buildServer() {
   const app = express();
@@ -40,9 +40,9 @@ export function buildServer() {
     );
   }
 
-setInterval(() => {
-  processDueConnectionChecks(10).catch(() => {});
-}, 10_000);
+//setInterval(() => {
+//  processDueConnectionChecks(10).catch(() => {});
+// }, 10_000);
 
 app.use('/api/admin', adminJobs);
 app.use('/evolution', evolutionWebhook);
@@ -55,6 +55,7 @@ app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
 app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
 app.use('/api/wpp', wppGroupsRouter);
 app.use('/api', campaignsRouter);
+app.use('/api/campaigns', campaignMaterialize);
 
   app.use(
     cors({
