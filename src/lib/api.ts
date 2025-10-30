@@ -33,6 +33,7 @@ api.interceptors.response.use(
   }
 );
 
+
 // Auth
 export const authApi = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
@@ -102,23 +103,40 @@ export const campaignsApi = {
     const { data } = await api.post(`/campaigns/${id}/schedule`, { throttle, org_id: orgId });
     return data;
   },
-  run: async (id: string, orgId?: string) => {
-    const { data } = await api.post(`/campaigns/${id}/run`, { org_id: orgId });
+
+  // ✅ NOVO: chama o endpoint /campaigns/:id/materialize_and_run
+  materializeAndRun: async (id: string, orgId?: string) => {
+    const { data } = await api.post(`/campaigns/${id}/materialize_and_run`, { org_id: orgId });
     return data;
   },
+
+  // 🔁 Compat: mantém campaignsApi.run funcionando, apontando para o novo endpoint
+  run: async (id: string, orgId?: string) => {
+    return campaignsApi.materializeAndRun(id, orgId);
+  },
   getActiveRuns: async (orgId?: string) => {
-    const { data } = await api.get('/campaigns/runs/active', { params: { org_id: orgId } });
+    const { data } = await api.get('/campaigns/runs/active_v2', {
+      params: { org_id: orgId, _t: Date.now() }, // cache-buster
+      headers: { 'Cache-Control': 'no-cache' },
+    });
     return data;
   },
   getRunProgress: (runId: string) => {
     const token = localStorage.getItem('auth_token');
     const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
     return new EventSource(`${baseURL}/api/campaigns/runs/${runId}/progress?token=${token}`);
-  },  
+  },
   saveMessage: async (id: string, orgId: string | undefined, message: any) => {
     const { data } = await api.patch(`/campaigns/${id}/message`, { org_id: orgId, message });
     return data;
   },
+  getRunRecentRecipients: async (runId: string, orgId?: string) => {
+  const { data } = await api.get(`/campaigns/runs/${runId}/recent_recipients`, {
+    params: { org_id: orgId, _t: Date.now() },  // cache-buster
+    headers: { 'Cache-Control': 'no-cache' }
+  });
+  return data;
+},
 };
 
 export const wppApi = {
