@@ -150,32 +150,99 @@ export const wppApi = {
 };
 // Sequences
 export const sequencesApi = {
-  list: async (params?: any) => {
-    const { data } = await api.get('/sequences', { params });
+  list: async (params: {
+    orgId: string;
+    status?: string;
+    channel?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params.status) searchParams.set('status', params.status);
+    if (params.channel) searchParams.set('channel', params.channel);
+    if (params.q) searchParams.set('q', params.q);
+    if (params.page) searchParams.set('page', params.page.toString());
+    if (params.limit) searchParams.set('limit', params.limit.toString());
+
+    const { data } = await api.get(`/sequences?${searchParams.toString()}`, {
+      headers: { 'X-Org-Id': params.orgId },
+    });
     return data;
   },
-  get: async (id: string) => {
-    const { data } = await api.get(`/sequences/${id}`);
+
+  create: async (data: { orgId: string; name: string; channel?: string }) => {
+    const { data: result } = await api.post(
+      '/sequences',
+      { name: data.name, channel: data.channel },
+      { headers: { 'X-Org-Id': data.orgId } }
+    );
+    return result.sequence;
+  },
+
+  get: async (id: string, orgId: string) => {
+    const { data } = await api.get(`/sequences/${id}`, {
+      headers: { 'X-Org-Id': orgId },
+    });
     return data;
   },
-  create: async (sequence: any) => {
-    const { data } = await api.post('/sequences', sequence);
+
+  update: async (id: string, orgId: string, data: { name?: string; active?: boolean }) => {
+    const { data: result } = await api.put(
+      `/sequences/${id}`,
+      data,
+      { headers: { 'X-Org-Id': orgId } }
+    );
+    return result.sequence;
+  },
+
+  updateSteps: async (
+    id: string,
+    orgId: string,
+    steps: Array<{ idx: number; kind: string; cfg: any }>
+  ) => {
+    const { data } = await api.put(
+      `/sequences/${id}/steps`,
+      { steps },
+      { headers: { 'X-Org-Id': orgId } }
+    );
+    return data.steps;
+  },
+
+  publish: async (id: string, orgId: string) => {
+    const { data } = await api.post(
+      `/sequences/${id}/publish`,
+      {},
+      { headers: { 'X-Org-Id': orgId } }
+    );
+    return data.sequence;
+  },
+
+  duplicate: async (id: string, orgId: string) => {
+    const { data } = await api.post(
+      `/sequences/${id}/duplicate`,
+      {},
+      { headers: { 'X-Org-Id': orgId } }
+    );
     return data;
   },
-  update: async (id: string, sequence: any) => {
-    const { data } = await api.put(`/sequences/${id}`, sequence);
-    return data;
+
+  testSend: async (id: string, orgId: string, data: { wa_number: string; vars?: Record<string, any> }) => {
+    const { data: result } = await api.post(
+      `/sequences/${id}/test-send`,
+      data,
+      { headers: { 'X-Org-Id': orgId } }
+    );
+    return result;
   },
-  delete: async (id: string) => {
-    await api.delete(`/sequences/${id}`);
-  },
-  subscribe: async (id: string, contactIds: string[]) => {
-    const { data } = await api.post(`/sequences/${id}/subscribe`, { contactIds });
-    return data;
-  },
-  pause: async (id: string, contactId: string) => {
-    const { data } = await api.post(`/sequences/${id}/pause`, { contactId });
-    return data;
+
+  archive: async (id: string, orgId: string) => {
+    const { data } = await api.post(
+      `/sequences/${id}/archive`,
+      {},
+      { headers: { 'X-Org-Id': orgId } }
+    );
+    return data.sequence;
   },
 };
 
