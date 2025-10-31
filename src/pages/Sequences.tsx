@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import type { Sequence, SequenceStatus } from '@/types/sequences';
 import { Skeleton } from '@/components/ui/skeleton';
+import NewSequenceButton from "@/components/sequences/NewSequenceButton";
+
 
 export default function Sequences() {
   const navigate = useNavigate();
@@ -46,22 +48,50 @@ export default function Sequences() {
     }
   };
 
+  const [isCreating, setIsCreating] = useState(false);
   const handleCreateNew = async () => {
     if (!organization?.id) return;
-    try {
-      const newSeq = await sequencesApi.create({
+
+    const baseName = "Nova Sequência";
+    const tryCreate = (name: string) =>
+      sequencesApi.create({
         orgId: organization.id,
-        name: 'Nova Sequência',
+        name,
+        channel: "whatsapp",
       });
-      navigate(`/sequencias/${newSeq.id}`);
+
+    try {
+      setIsCreating(true);
+
+      let seq: any;
+      try {
+        seq = await tryCreate(baseName);
+      } catch (err: any) {
+        const msg = String(
+          err?.response?.data?.error ?? err?.response?.data ?? err?.message ?? ""
+        ).toLowerCase();
+        const isDup =
+          msg.includes("duplicate key") ||
+          msg.includes("ux_comms_sequences_org_name_version");
+
+        if (!isDup) throw err;
+
+        const suffix = Math.random().toString(36).slice(2, 7);
+        seq = await tryCreate(`${baseName} - ${suffix}`);
+      }
+
+      navigate(`/sequencias/${seq.id}`);
     } catch (error: any) {
       toast({
-        title: 'Erro ao criar sequência',
-        description: error.message,
-        variant: 'destructive',
+        title: "Erro ao criar sequência",
+        description: error?.message ?? "Tente novamente.",
+        variant: "destructive",
       });
+    } finally {
+      setIsCreating(false);
     }
   };
+
 
   const handleDuplicate = async (id: string) => {
     if (!organization?.id) return;

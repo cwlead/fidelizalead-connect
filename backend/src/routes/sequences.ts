@@ -226,42 +226,107 @@ sequencesRouter.put('/sequences/:id/steps', authRequired, async (req, res) => {
  * Publica sequência (incrementa versão, trava edição)
  */
 sequencesRouter.post('/sequences/:id/publish', authRequired, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user as JwtPayload | undefined;
-    const orgId = user?.org_id || (req.body?.org_id as string);
-    if (!orgId) return res.status(400).json({ ok: false, error: 'missing_org_id' });
+  const { id } = req.params;
+  const user = (req as any).user as JwtPayload | undefined;
+  const orgId = user?.org_id || (req.body?.org_id as string);
 
-    // Verificar se tem pelo menos 1 passo
-    const stepsQ = await pool.query(
-      `select count(*) as n from public.comms_sequence_steps where sequence_id = $1`,
-      [id]
+  if (!orgId) {
+    return res.status(400).json({ ok: false, error: 'org_id_ausente' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1) trava a sequência (rascunho) para evitar corrida
+    const seqQ = await client.query(
+      `select id, name, status
+         from public.comms_sequences
+        where id = $1 and org_id = $2
+        for update`,
+      [id, orgId]
     );
-    if (Number(stepsQ.rows[0].n) === 0) {
-      return res.status(400).json({ ok: false, error: 'sequence_requires_at_least_one_step' });
+    if (seqQ.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'sequencia_nao_encontrada' });
+    }
+    const seq = seqQ.rows[0];
+    if (seq.status !== 'draft') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ ok: false, error: 'A campanha ja foi publicada' });
     }
 
-    const result = await pool.query(
+    // 2) precisa ter pelo menos 1 passo
+    const stepsQ = await client.query<{ n: number }>(
+      `select count(*)::int as n
+         from public.comms_sequence_steps
+        where sequence_id = $1`,
+      [id]
+    );
+    if (stepsQ.rows[0].n <= 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ ok: false, error: 'sequencia_precisa_de_ao_menos_um_passo' });
+    }
+
+    // 3) advisory lock por (org_id, name) para serializar publicações do mesmo "nome"
+    await client.query(
+      `select pg_advisory_xact_lock(hashtext($1 || ':' || $2))`,
+      [orgId, seq.name]
+    );
+
+    // 4) próxima versão livre entre PUBLICADAS desse (org_id, name)
+    const vQ = await client.query<{ v: number }>(
+      `select coalesce(max(version), 0) + 1 as v
+         from public.comms_sequences
+        where org_id = $1
+          and name  = $2
+          and status = 'published'`,
+      [orgId, seq.name]
+    );
+    const nextVersion = vQ.rows[0].v;
+
+    // 5) publica usando a versão calculada
+    const result = await client.query(
       `update public.comms_sequences
-       set status = 'published',
-           version = version + 1,
-           updated_at = now()
-       where id = $1 and org_id = $2 and status = 'draft'
-       returning *`,
-      [id, orgId]
+          set status = 'published',
+              version = $1,
+              updated_at = now()
+        where id = $2
+          and org_id = $3
+          and status = 'draft'
+        returning *`,
+      [nextVersion, id, orgId]
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ ok: false, error: 'sequence_not_found_or_not_draft' });
+      await client.query('ROLLBACK');
+      return res.status(404).json({ ok: false, error: 'sequencia_nao_encontrada_ou_nao_rascunho' });
     }
 
-    logger.info({ msg: 'Sequence published', id, orgId, version: result.rows[0].version });
+    await client.query('COMMIT');
+
+    logger.info({
+      msg: 'Sequência publicada',
+      id,
+      orgId,
+      version: result.rows[0].version,
+    });
+
     return res.json({ sequence: result.rows[0] });
   } catch (e: any) {
-    logger.error({ msg: 'POST /sequences/:id/publish failed', error: e?.message || e });
-    return res.status(502).json({ ok: false, error: 'publish_failed' });
+    try { await client.query('ROLLBACK'); } catch {}
+    // conflito de unique (corrida extrema)
+    if (e?.code === '23505') {
+      logger.error({ msg: 'Conflito de publicação (unique)', error: e?.message || e });
+      return res.status(409).json({ ok: false, error: 'conflito_publicacao_tente_novamente' });
+    }
+    logger.error({ msg: 'POST /sequences/:id/publish falhou', error: e?.message || e });
+    return res.status(502).json({ ok: false, error: 'falha_ao_publicar' });
+  } finally {
+    client.release();
   }
 });
+
 
 /**
  * POST /api/sequences/:id/duplicate

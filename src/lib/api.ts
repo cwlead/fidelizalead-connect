@@ -8,6 +8,7 @@ const api = axios.create({
   },
 });
 
+
 // Request interceptor para adicionar token
 api.interceptors.request.use(
   (config) => {
@@ -32,7 +33,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 
 // Auth
 export const authApi = {
@@ -151,30 +151,48 @@ export const wppApi = {
 // Sequences
 export const sequencesApi = {
   list: async (params: {
-    orgId: string;
+    orgId?: string;              // compat
+    org_id?: string;             // compat
     status?: string;
     channel?: string;
     q?: string;
     page?: number;
     limit?: number;
   }) => {
+    const orgHeader = (params.orgId || params.org_id || '').trim();
+    if (!orgHeader) throw new Error('missing_org_id');
+
+    // normaliza canal (wizard usa 'whatsapp.evolution', API usa 'whatsapp')
+    const channel =
+      params.channel && params.channel.toLowerCase() === 'whatsapp.evolution'
+        ? 'whatsapp'
+        : params.channel;
+
     const searchParams = new URLSearchParams();
-    if (params.status) searchParams.set('status', params.status);
-    if (params.channel) searchParams.set('channel', params.channel);
+    searchParams.set('status', (params.status || 'published').toString());
+    if (channel) searchParams.set('channel', channel);
     if (params.q) searchParams.set('q', params.q);
-    if (params.page) searchParams.set('page', params.page.toString());
-    if (params.limit) searchParams.set('limit', params.limit.toString());
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.limit) searchParams.set('limit', String(params.limit));
 
     const { data } = await api.get(`/sequences?${searchParams.toString()}`, {
-      headers: { 'X-Org-Id': params.orgId },
+      headers: {
+        'X-Org-Id': orgHeader,
+        'Cache-Control': 'no-cache',
+      },
     });
     return data;
   },
 
   create: async (data: { orgId: string; name: string; channel?: string }) => {
+    const normalizedChannel =
+      data.channel && data.channel.toLowerCase() === 'whatsapp.evolution'
+        ? 'whatsapp'
+        : data.channel;
+
     const { data: result } = await api.post(
       '/sequences',
-      { name: data.name, channel: data.channel },
+      { name: data.name, channel: normalizedChannel },
       { headers: { 'X-Org-Id': data.orgId } }
     );
     return result.sequence;
@@ -227,7 +245,11 @@ export const sequencesApi = {
     return data;
   },
 
-  testSend: async (id: string, orgId: string, data: { wa_number: string; vars?: Record<string, any> }) => {
+  testSend: async (
+    id: string,
+    orgId: string,
+    data: { wa_number: string; vars?: Record<string, any> }
+  ) => {
     const { data: result } = await api.post(
       `/sequences/${id}/test-send`,
       data,
@@ -243,6 +265,53 @@ export const sequencesApi = {
       { headers: { 'X-Org-Id': orgId } }
     );
     return data.sequence;
+  },
+
+  // Possibilitar upload de imagem
+   mediaUpload: async (
+    sequenceId: string,
+    orgId: string,
+    file: File,
+    onProgress?: (pct: number) => void
+  ) => {
+    const form = new FormData();
+    form.append('file', file);
+
+    const { data } = await api.post(
+      `/sequences/${sequenceId}/media/upload`,
+      form,
+      {
+        headers: {
+          'X-Org-Id': orgId,
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (evt) => {
+          if (!evt.total) return;
+          onProgress?.(Math.round((evt.loaded * 100) / evt.total));
+        },
+      }
+    );
+
+    // esperado: { fileId, url?, mime_type?, width?, height? }
+    return data as { fileId: string; url?: string };
+  },
+};
+
+
+
+// API UPLOAD
+export const uploadsApi = {
+  upload: async (orgId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+
+    const { data } = await api.post('/uploads', form, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'X-Org-Id': orgId,
+      },
+    });
+    return data as { fileId: string; key: string; contentType: string; size: number };
   },
 };
 

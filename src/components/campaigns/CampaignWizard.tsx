@@ -5,16 +5,20 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { ChannelSelectStep } from './steps/ChannelSelectStep';
 import { AudienceStep } from './steps/AudienceStep';
-import { MessageStep } from './steps/MessageStep';
-import { ScheduleSafetyStep } from './steps/ScheduleSafetyStep';
+import SequenceStep from './steps/SequenceStep';
 import { ReviewStep } from './steps/ReviewStep';
-import { useToast } from '@/hooks/use-toast';
+
 
 export interface CampaignDraft {
   id?: string;
   name: string;
-  channel: string;
+  channel: string;            // ex.: 'whatsapp.evolution'
   audience?: any;
+
+  // NOVO: vínculo com a sequência escolhida
+  sequence_id?: string;
+
+  // Mantidos só por compatibilidade com backend antigo (não usados no wizard novo)
   message?: {
     type: 'text' | 'audio' | 'video';
     template_id?: string;
@@ -23,6 +27,7 @@ export interface CampaignDraft {
     media_url?: string;
   };
   throttle?: any;
+
   estimatedCount?: number;
 }
 
@@ -35,13 +40,11 @@ interface CampaignWizardProps {
 const STEPS = [
   { id: 1, label: 'Canal' },
   { id: 2, label: 'Público' },
-  { id: 3, label: 'Mensagem' },
-  { id: 4, label: 'Envio & Segurança' },
-  { id: 5, label: 'Revisão' },
+  { id: 3, label: 'Sequência' },   // ⬅️ trocamos “Mensagem” por “Sequência”
+  { id: 4, label: 'Revisão' },     // ⬅️ removemos “Envio & Segurança”
 ];
 
 export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardProps) {
-  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [draft, setDraft] = useState<CampaignDraft>({
     name: 'Campanha (draft)',
@@ -52,8 +55,8 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
       per_minute: 6,
       quiet_hours: ['22:00', '08:00'],
       dry_run: true,
-      safeguards: { frequency_cap_hours: 72 }
-    }
+      safeguards: { frequency_cap_hours: 72 },
+    },
   });
 
   const handleDraftChange = (updates: Partial<CampaignDraft>) => {
@@ -61,18 +64,17 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
   };
 
   const handleNext = () => {
-    if (currentStep < STEPS.length) {
-      setCurrentStep(currentStep + 1);
-    }
+    if (currentStep < STEPS.length) setCurrentStep(s => s + 1);
   };
-
   const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
+    if (currentStep > 1) setCurrentStep(s => s - 1);
   };
 
   const progress = (currentStep / STEPS.length) * 100;
+
+  // Desabilita “Próximo” enquanto não escolher a sequência (passo 3)
+  const canGoNext =
+    currentStep !== 3 || Boolean(draft.sequence_id);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -81,19 +83,19 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
           <DialogTitle>Criar Campanha Plus</DialogTitle>
         </DialogHeader>
 
-        {/* Progress */}
+        {/* Barra de passos */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            {STEPS.map((step) => (
+            {STEPS.map(step => (
               <span
                 key={step.id}
-                className={`${
+                className={
                   step.id === currentStep
                     ? 'font-semibold text-primary'
                     : step.id < currentStep
                     ? 'text-muted-foreground'
                     : 'text-muted-foreground/50'
-                }`}
+                }
               >
                 {step.label}
               </span>
@@ -102,7 +104,7 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
           <Progress value={progress} className="h-2" />
         </div>
 
-        {/* Steps */}
+        {/* Etapas */}
         <div className="py-6">
           {currentStep === 1 && (
             <ChannelSelectStep
@@ -111,6 +113,7 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
               onNext={handleNext}
             />
           )}
+
           {currentStep === 2 && (
             <AudienceStep
               draft={draft}
@@ -119,23 +122,20 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
               onNext={handleNext}
             />
           )}
+
           {currentStep === 3 && (
-            <MessageStep
-              draft={draft}
-              onDraftChange={handleDraftChange}
-              orgId={orgId}  
-              onNext={handleNext}
-            />
-          )}
-          {currentStep === 4 && (
-            <ScheduleSafetyStep
-              draft={draft}
+            <SequenceStep
               orgId={orgId}
-              onDraftChange={handleDraftChange}
-              onNext={handleNext}
+              channel={draft.channel}              // 'whatsapp.evolution' ok — api normaliza
+              value={(draft as any).sequence_id}
+              onChange={(sequenceId) => {
+                handleDraftChange({ sequence_id: sequenceId } as any);
+                handleNext();
+              }}
             />
           )}
-          {currentStep === 5 && (
+
+          {currentStep === 4 && (
             <ReviewStep
               draft={draft}
               orgId={orgId}
@@ -145,18 +145,14 @@ export function CampaignWizard({ orgId, onClose, onLaunched }: CampaignWizardPro
           )}
         </div>
 
-        {/* Navigation */}
+        {/* Navegação */}
         {currentStep < STEPS.length && (
           <div className="flex justify-between pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1}
-            >
+            <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
-            <Button onClick={handleNext}>
+            <Button onClick={handleNext} disabled={!canGoNext}>
               Próximo
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

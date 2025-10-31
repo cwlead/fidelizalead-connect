@@ -21,6 +21,9 @@ import { wppGroupsRouter } from './routes/wpp.groups';
 import { campaignsRouter } from './routes/campaigns';
 import { sequencesRouter } from './routes/sequences';
 import { campaignMaterialize } from './routes/campaign.materialize';
+import path from 'node:path';
+import uploads from './routes/uploads';
+import filesRouter from './routes/files';
 
 export function buildServer() {
   const app = express();
@@ -51,13 +54,31 @@ app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
 
 
   app.use(helmet());
-  app.use(express.json());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
 app.use('/api/wpp', wppGroupsRouter);
 app.use('/api', campaignsRouter);
 app.use('/api', sequencesRouter);
 app.use('/api/campaigns', campaignMaterialize);
+
+// Seta limite de imagem na criacao de sequencia
+app.use(
+  '/api/sequences',
+  express.json({ limit: '15mb' }),
+  express.urlencoded({ extended: true, limit: '15mb' })
+);
+
+
+// Rota upload
+app.use('/api/files', filesRouter);
+const uploadsDir = process.env.UPLOADS_DIR ?? path.join(process.cwd(), 'uploads_public');
+app.use('/uploads', express.static(uploadsDir, { maxAge: '7d', index: false }));
+
+// **rota de upload**
+app.use('/api/uploads', uploads);
+
 
   app.use(
     cors({
