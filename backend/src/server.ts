@@ -19,6 +19,7 @@ import { adminJobs } from './routes/admin.jobs';
 import { orgConnectionRouter } from './routes/org.connection';
 import { wppGroupsRouter } from './routes/wpp.groups';
 import { campaignsRouter } from './routes/campaigns';
+import { sequencesRouter } from './routes/sequences';
 import { campaignMaterialize } from './routes/campaign.materialize';
 
 export function buildServer() {
@@ -55,6 +56,7 @@ app.use('/api/evolution', evolutionWebhook); // recebe tenant instance
 app.use('/api/org', orgConnectionRouter); // → GET /api/org/connection/summary
 app.use('/api/wpp', wppGroupsRouter);
 app.use('/api', campaignsRouter);
+app.use('/api', sequencesRouter);
 app.use('/api/campaigns', campaignMaterialize);
 
   app.use(
