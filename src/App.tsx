@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
@@ -19,6 +20,9 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
+// 👇 novo: editor de sequência (detalhe)
+import SequenceEditor from "@/components/sequences/SequenceEditor";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -31,6 +35,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/login" element={<Login />} />
+
             <Route
               path="/onboarding"
               element={
@@ -39,6 +44,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/dashboard"
               element={
@@ -47,6 +53,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/contatos"
               element={
@@ -55,6 +62,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/campanhas"
               element={
@@ -63,6 +71,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/sequencias"
               element={
@@ -71,6 +80,17 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
+            {/* 👇 nova rota: editor de sequência */}
+            <Route
+              path="/sequencias/:id"
+              element={
+                <ProtectedRoute>
+                  <SequenceEditor />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/fidelidade"
               element={
@@ -79,6 +99,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/whatsapp"
               element={
@@ -87,6 +108,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/grupos"
               element={
@@ -95,6 +117,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/integracoes"
               element={
@@ -103,6 +126,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/relatorios"
               element={
@@ -111,6 +135,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/configuracoes"
               element={
@@ -119,6 +144,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
